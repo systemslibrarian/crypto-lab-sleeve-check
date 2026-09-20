@@ -168,7 +168,7 @@ npm run check:links    # re-check that every cited source still resolves
 
 ## Build & Verify
 
-**158 tests, all executed in CI: 91 Vitest + 29 Playwright claims + 36 cross-browser flow runs + 2 axe gates.**
+**160 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 
 Known-answer tests and their fixture files:

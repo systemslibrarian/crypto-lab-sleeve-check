@@ -143,33 +143,52 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
 
   // --------------------------------------------------- the standing verdict --
   const everythingGreen = progress.cipherVerified && progress.diffRun && progress.diffDistance === 0;
+  // Three states, not two. "Not run yet" and "run, and no longer matching" are
+  // different things, and a summary that calls the second one the first is
+  // telling the visitor to do work they have already done. The retired state
+  // has to SAY it was retired -- that is what makes the standing verdict a
+  // report on the checks rather than a decoration.
+  const retired = progress.cipherVerified && progress.diffRun && progress.diffDistance !== 0;
   root.appendChild(
     el('section', { class: `card ${everythingGreen ? 'card-intro' : ''}` }, [
       el('h2', { text: 'What the rebuild does, and does not, establish' }),
       el(
         'p',
         {
-          class: `verdict ${everythingGreen ? 'is-pass' : 'is-idle'}`,
+          class: `verdict ${everythingGreen ? 'is-pass' : retired ? 'is-fail' : 'is-idle'}`,
           id: 'standing-verdict',
           // Same `data-tone` contract as every other verdict on the page, so the
           // claims suite's "every verdict reports success" sweep includes this
           // one rather than stepping around it.
-          'data-tone': everythingGreen ? 'pass' : 'idle',
+          'data-tone': everythingGreen ? 'pass' : retired ? 'fail' : 'idle',
           role: 'status',
           'aria-live': 'polite',
         },
         [
-          el('span', { class: 'verdict-mark', 'aria-hidden': 'true', text: everythingGreen ? '✓' : '·' }),
+          el('span', {
+            class: 'verdict-mark',
+            'aria-hidden': 'true',
+            text: everythingGreen ? '✓' : retired ? '✕' : '·',
+          }),
           el('span', {}, [
             el('strong', {
-              text: everythingGreen ? 'STRUCTURE RECOVERED — AND NOTHING IS BROKEN' : 'Run panes 1 and 2 first',
+              text: everythingGreen
+                ? 'STRUCTURE RECOVERED — AND NOTHING IS BROKEN'
+                : retired
+                  ? 'RETIRED — THE REBUILD NO LONGER MATCHES'
+                  : 'Run panes 1 and 2 first',
             }),
             everythingGreen
               ? ' — the cipher matched every RFC 7801 §5 vector, and the rebuild matched all 256 ' +
                 'published bytes with Hamming distance 0. Every check on this page reports success, ' +
                 'and in exactly that state nothing here breaks Kuznyechik: no key is recovered, no ' +
                 'distinguisher is built, no ciphertext is read.'
-              : ' — this summary reports the state of the checks in panes 1 and 2.',
+              : retired
+                ? ` — the constants in pane 2 have been edited, and the rebuild now differs from the ` +
+                  `published table in ${progress.diffDistance} of 256 entries. This summary was ` +
+                  `withdrawn when that happened; everything below still stands, because it is about ` +
+                  `π as published rather than about your edited version.`
+                : ' — this summary reports the state of the checks in panes 1 and 2.',
           ]),
         ],
       ),

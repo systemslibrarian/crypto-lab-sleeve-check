@@ -507,3 +507,53 @@ test('source links open safely and are not identified by colour alone', async ({
   );
   expect(bad, 'every source link needs rel="noopener noreferrer" and a visible underline').toEqual([]);
 });
+
+// ── retirement of the pane-3 summary ───────────────────────────────────────
+
+test('editing a constant retires the standing verdict, and the page says so', async ({ page }) => {
+  await reachTableDiffed(page);
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'pass');
+  await expect(page.locator('#standing-verdict')).toContainText('STRUCTURE RECOVERED');
+
+  await page.getByRole('tab', { name: /The Table/ }).click();
+  await page.locator('#break-one-bit').click();
+  await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'fail');
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+
+  // The stale verdict is gone, the page says it was withdrawn, and it reports
+  // the same distance pane 2 is showing -- a cross-check between two surfaces.
+  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'fail');
+  await expect(page.locator('#standing-verdict')).not.toContainText('STRUCTURE RECOVERED');
+  await expect(page.locator('#standing-verdict')).toContainText('RETIRED');
+  await expect(page.locator('#standing-verdict')).toContainText('withdrawn');
+
+  const summary = (await page.locator('#standing-verdict').textContent()) ?? '';
+  const fromPane3 = Number(/differs from the published table in (\d+) of 256/.exec(summary)?.[1]);
+  await page.getByRole('tab', { name: /The Table/ }).click();
+  const fromPane2 = Number(
+    /Hamming distance (\d+) of 256/.exec((await page.locator('#diff-verdict').textContent()) ?? '')?.[1],
+  );
+  expect(fromPane3, 'the two panes must report the same distance').toBe(fromPane2);
+  expect(fromPane3).toBeGreaterThan(0);
+
+  // And it comes back when the constants do.
+  await page.locator('#reset-constants').click();
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'pass');
+  await expect(page.locator('#standing-verdict')).toContainText('STRUCTURE RECOVERED');
+});
+
+test('a retired summary does not retire the sourced record below it', async ({ page }) => {
+  // The record is about π as published; a visitor's edits must not appear to
+  // undermine it. This is the shape that would be easy to get wrong by wiring
+  // the whole pane to `everythingGreen`.
+  await reachTableDiffed(page);
+  await page.getByRole('tab', { name: /The Table/ }).click();
+  await page.locator('#break-one-bit').click();
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'fail');
+  await expect(page.locator('.record > li')).toHaveCount(3);
+  await expect(page.locator('#bibliography li[data-source-entry]')).toHaveCount(12);
+  await expect(page.locator('#negative-claim')).toBeVisible();
+});

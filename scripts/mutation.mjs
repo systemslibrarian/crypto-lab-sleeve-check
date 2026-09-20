@@ -137,16 +137,24 @@ const LEDGER = [
     file: 'src/ui/tablePane.ts',
     from: '      onDiffed(diffTables(generated, PI).distance);\n    }',
     to: '      onDiffed(0);\n    }',
-    command: 'npx playwright test --project=claims --grep "4.1d"',
-    names: 'no verdict may be anything but pass in the fixture',
+    // Pointed at the retirement test, not the 4.1d fixture: the fixture never
+    // edits a constant, so it never reaches this call site. The first run of
+    // this ledger reported a DEAD ORACLE here, and it was right -- the source
+    // was correct and the coverage was missing.
+    command: 'npx playwright test --project=claims --grep "retires the standing verdict"',
+    names: 'the two panes must report the same distance',
   },
   {
     id: 'negative-claim',
     kind: 'browser',
     why: '§4.1d -- the limitation must be on screen in the all-green fixture state',
     file: 'src/ui/claimPane.ts',
+    // Replaced rather than deleted. An empty `to` matches at every position in
+    // the file, so the reverse direction cannot be checked for uniqueness --
+    // the first run of this ledger found 16192 occurrences of '' and stranded
+    // the mutation. A mutation must be unique in BOTH directions.
     from: 'It is not an attack, and it does not become one by being exact. ',
-    to: '',
+    to: 'It is an attack. ',
     command: 'npx playwright test --project=claims --grep "4.1d"',
     names: 'It is not an attack',
   },
