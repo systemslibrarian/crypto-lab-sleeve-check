@@ -1,5 +1,7 @@
 /** Tiny DOM helpers. No framework; the point of this lab is inspectable output. */
 
+import { SOURCES, type SourceId } from './sources';
+
 type Attrs = Record<string, string | number | boolean | undefined | null>;
 type Child = Node | string | null | undefined | false;
 
@@ -71,6 +73,21 @@ export function verdict(id: string): {
     },
     tone: () => current,
   };
+}
+
+/**
+ * An inline link to a primary source, from the registry in `sources.ts`.
+ *
+ * Inline links carry a persistent underline rather than colour alone (template
+ * 4.2), and every one opens in a new tab with `rel="noopener noreferrer"` --
+ * this page holds a visitor's edited constants, and a source link should not
+ * throw that away.
+ */
+export function cite(id: SourceId, text?: string): HTMLAnchorElement {
+  const source = SOURCES[id];
+  return el('a', { href: source.href, target: '_blank', rel: 'noopener noreferrer', 'data-source': id }, [
+    text ?? source.label,
+  ]);
 }
 
 /** A scrollable wrapper that meets the keyboard/label rules in template 4.2. */

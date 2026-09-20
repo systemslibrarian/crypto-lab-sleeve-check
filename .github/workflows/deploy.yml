@@ -18,10 +18,12 @@ on:
   # Required by the post-merge dispatch at the bottom of this file.
   workflow_dispatch:
 
+# Least privilege at workflow scope. `build` runs on every pull request,
+# including Dependabot's, so it must not inherit the Pages write and OIDC
+# permissions only the deploy step needs -- those are granted on the `deploy`
+# job alone, below.
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   # Keyed by ref, NOT a bare `pages`. With pull_request as a trigger and
@@ -39,8 +41,8 @@ jobs:
     # takes well under two.
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -49,20 +51,36 @@ jobs:
         run: npm test
       - name: Build (typecheck gates the build)
         run: npm run build
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-      # Both Playwright projects, named explicitly. `playwright test` with no
-      # project would also run both today, but the whole point of this file is
-      # that what a bump merges against cannot drift from what deploys.
-      - name: Accessibility gate (axe-core, WCAG 2.1 A/AA) and claims suite
+      - name: Install Playwright browsers
+        # All three engines: the axe gate is Chromium-only by design, but the
+        # critical-path flows run in Firefox and WebKit too, and an engine that
+        # is only exercised locally is an engine nobody is checking.
+        run: npx playwright install --with-deps chromium firefox webkit
+      # Every Playwright project, in one command. What a Dependabot bump merges
+      # against is therefore exactly what deploys -- which is the whole point of
+      # this file having one gate job.
+      - name: Axe gate, claims suite, and cross-browser flows
         run: npm run test:e2e:all
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # Upload only on the paths that can actually deploy. On a pull request
+      # `deploy` is skipped, so an artifact there is work nothing consumes.
+      #
+      # There is deliberately no `actions/configure-pages` step. It exists to
+      # read the site's base URL back into a build and to switch Pages on; this
+      # repo hardcodes its Vite base and Pages is already set to build_type
+      # "workflow". Keeping it would mean granting this job -- which runs on
+      # every pull request, Dependabot's included -- a Pages permission solely
+      # to read a value nothing uses.
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        if: github.event_name != 'pull_request'
         with:
           path: dist
 
   deploy:
     needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     # NOT `== 'push'`. That also skips workflow_dispatch, which is the one
     # trigger the post-auto-merge deploy depends on: the dispatched run would
     # build, pass the gate, and then skip this job, so the site never updates.
@@ -74,7 +92,7 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
 
   # Dependabot only. `needs: build` is the whole safety argument -- the gate
   # decides, not the version number.
@@ -89,7 +107,7 @@ jobs:
       actions: write   # required by the deploy dispatch; without it gh workflow run 403s
     steps:
       - id: meta
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
       # Majors included on purpose. `needs:` above already required the whole
       # gate to pass, and that gate -- unit tests, build, axe WCAG and the
       # claims suite -- judges a bump far better than its version number does.

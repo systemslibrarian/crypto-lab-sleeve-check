@@ -15,7 +15,7 @@ import { diffTables } from '../gost/diff';
 import { cosetViews, distinctSpaceCount, type CosetView } from '../gost/cosets';
 import { generateAesSbox, AES_FIELD } from '../gost/aes';
 import { subfield16, type LogTables } from '../gost/field';
-import { clear, el, hex2, scrollRegion, verdict } from './dom';
+import { cite, clear, el, hex2, scrollRegion, verdict } from './dom';
 
 const PI = [...PI_RFC7801];
 const AES = generateAesSbox();
@@ -126,7 +126,18 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
         'In 2019 Léo Perrin found that those 256 numbers fall out of four small constants and a ' +
           'few lines of finite-field arithmetic. The grid on the right below starts empty. Press ' +
           'Generate & Diff and it fills from those four constants alone — the code that fills it ' +
-          'has never seen the published table.',
+          'has never seen the published table. ',
+        el('span', { class: 'src' }, [
+          'Sources: the published table is ',
+          cite('rfc7801', 'RFC 7801 §4.1'),
+          ' and ',
+          cite('rfc6986', 'RFC 6986 §6.2'),
+          '; the structure is ',
+          cite('tosc2019'),
+          ', with the generator script in ',
+          cite('faq', 'Perrin’s FAQ, §2.1.1'),
+          '.',
+        ]),
       ]),
     ]),
   );
@@ -215,6 +226,16 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
       el('div', { class: 'row' }, [genBtn]),
       el('div', { class: 'stack-gap' }, [diffVerdict.node, reuseVerdict.node]),
       missList,
+      el('p', { class: 'src' }, [
+        'The two tables these verdicts compare against are ',
+        cite('rfc7801', 'RFC 7801 §4.1'),
+        ' (Kuznyechik) and ',
+        cite('rfc6986', 'RFC 6986 §6.2'),
+        ' (Streebog). They are transcribed from the RFCs, not produced by this page. The structure ' +
+          'being rebuilt is ',
+        cite('tosc2019'),
+        '.',
+      ]),
       el('ul', { class: 'legend', role: 'list' }, [
         el('li', { role: 'listitem' }, [el('span', { class: 'swatch match', 'aria-hidden': 'true' }), 'match']),
         el('li', { role: 'listitem' }, [el('span', { class: 'swatch miss', 'aria-hidden': 'true' }), 'mismatch (marked ≠, and listed above)']),
@@ -243,7 +264,8 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
         el('p', { class: 'note' }, [
           'The representation field is F₂[X]/(X⁸+X⁴+X³+X²+1) and α is its generator. That field is ' +
             'Perrin’s choice of representation, recovered along with the constants. GOST ' +
-            'specified no field for π — it published a lookup table.',
+            'specified no field for π — it published a lookup table. ',
+          el('span', { class: 'src' }, ['The equations above are ', cite('tosc2019'), ', §4.']),
         ]),
         el('p', { class: 'note' }, [
           'One subtlety the port has to get right: the multiplicative identity has two log ' +
@@ -397,9 +419,10 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
         ]),
         el('p', { class: 'note' }, [
           'AES’s S-box is S(0) = b and S(x) = A·x⁻¹ ⊕ b for x ≠ 0, with A ' +
-            'a fixed GF(2)-affine map and b = 0x63 — both halves published in FIPS 197. The ' +
-            'contrast is not that AES is structureless. It is that AES’s structure was stated by ' +
-            'its designers, and π’s was recovered from the table twenty years later.',
+            'a fixed GF(2)-affine map and b = 0x63 — both halves published in ',
+          cite('fips197', 'FIPS 197, §5.1.1'),
+          '. The contrast is not that AES is structureless. It is that AES’s structure was ' +
+            'stated by its designers, and π’s was recovered from the table twenty years later.',
         ]),
       ]),
     ]),

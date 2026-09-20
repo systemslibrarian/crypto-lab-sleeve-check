@@ -395,3 +395,115 @@ test('the probability scale reports the ratio of the two counts it prints', asyn
   // Parts sum to whole: the probability IS the ratio of the two counts.
   expect(instances - perms).toBeCloseTo(shown, 1);
 });
+
+// ── source traceability: every consequential claim carries a link ──────────
+
+const ALLOWED_SOURCE_HOSTS = [
+  'www.rfc-editor.org',
+  'tosc.iacr.org',
+  'eprint.iacr.org',
+  'who.paris.inria.fr',
+  'nvlpubs.nist.gov',
+];
+
+test('every dated record entry cites a primary source beside it', async ({ page }) => {
+  await reachTableDiffed(page);
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  const items = page.locator('.record > li');
+  const count = await items.count();
+  expect(count, 'the record must have entries').toBeGreaterThanOrEqual(3);
+  for (let i = 0; i < count; i++) {
+    const item = items.nth(i);
+    const when = ((await item.locator('.when').textContent()) ?? '').trim();
+    const links = item.locator('a[data-source]');
+    expect(await links.count(), `record entry "${when}" has no source link`).toBeGreaterThan(0);
+    for (const href of await links.evaluateAll((els) => els.map((e) => e.getAttribute('href') ?? ''))) {
+      expect(new URL(href).protocol, `${when}: ${href}`).toBe('https:');
+      expect(ALLOWED_SOURCE_HOSTS, `${when}: unexpected host in ${href}`).toContain(new URL(href).host);
+    }
+  }
+});
+
+test('each named technical claim carries a link where it is made', async ({ page }) => {
+  await reachTableDiffed(page);
+  // section heading (or disclosure summary) -> a source id that must be linked inside it
+  const required: Array<[RegExp, string, string]> = [
+    [/The Table/, 'Rebuild it, then diff it', 'tosc2019'],
+    [/The Table/, 'Rebuild it, then diff it', 'rfc6986'],
+    [/The Claim/, 'The reality check', 'bannier'],
+    [/The Claim/, 'How unlikely is unlikely', 'tosc2019'],
+    [/The Claim/, 'Prior art, and further reading', 'tosc2016'],
+    [/The Claim/, 'Prior art, and further reading', 'eurocrypt2016'],
+  ];
+  for (const [tab, heading, sourceId] of required) {
+    await page.getByRole('tab', { name: tab }).click();
+    const card = page
+      .locator('.pane:not([hidden]) .card')
+      .filter({ has: page.getByRole('heading', { name: heading }) });
+    await expect(card, `card "${heading}" must exist`).toHaveCount(1);
+    await expect(
+      card.locator(`a[data-source="${sourceId}"]`).first(),
+      `"${heading}" must link ${sourceId} where the claim is made`,
+    ).toHaveAttribute('href', /^https:\/\//);
+  }
+});
+
+test('the errata are cited where the L coefficients are discussed', async ({ page }) => {
+  await reachCipherVerified(page);
+  const card = page
+    .locator('#pane-cipher .card')
+    .filter({ hasText: 'One thing the RFC gets wrong' });
+  await expect(card).toHaveCount(1);
+  await expect(card.locator('a[data-source="eid6928"]')).toHaveCount(1);
+  await expect(card.locator('a[data-source="eid4660"]')).toHaveCount(1);
+  // EID 4660 must be described as editorial, never as the fix for the vectors.
+  await expect(card).toContainText('editorial and unrelated');
+});
+
+test('the bibliography lists every source the page can cite, with no orphans', async ({ page }) => {
+  await reachTableDiffed(page);
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  const listed = await page
+    .locator('#bibliography li[data-source-entry]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('data-source-entry') ?? ''));
+  expect(listed.length, 'the bibliography must be populated').toBeGreaterThanOrEqual(12);
+  expect(new Set(listed).size, 'no duplicate bibliography entries').toBe(listed.length);
+
+  // Every source linked anywhere in the page must appear in the bibliography.
+  const cited = new Set<string>();
+  for (const tab of [/The Cipher/, /The Table/, /The Claim/]) {
+    await page.getByRole('tab', { name: tab }).click();
+    for (const summary of await page.locator('.pane:not([hidden]) details summary').all()) {
+      await summary.click();
+    }
+    for (const id of await page
+      .locator('.pane:not([hidden]) a[data-source]')
+      .evaluateAll((els) => els.map((e) => e.getAttribute('data-source') ?? ''))) {
+      cited.add(id);
+    }
+  }
+  expect([...cited].filter((id) => !listed.includes(id)), 'cited but not in the bibliography').toEqual([]);
+  // And every bibliography entry is a real link, not bare text.
+  const hrefs = await page
+    .locator('#bibliography a[data-source]')
+    .evaluateAll((els) => els.map((e) => e.getAttribute('href') ?? ''));
+  expect(hrefs).toHaveLength(listed.length);
+  for (const href of hrefs) expect(ALLOWED_SOURCE_HOSTS).toContain(new URL(href).host);
+});
+
+test('source links open safely and are not identified by colour alone', async ({ page }) => {
+  await reachTableDiffed(page);
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  const links = page.locator('#pane-claim a[data-source]');
+  expect(await links.count()).toBeGreaterThan(10);
+  const bad = await links.evaluateAll((els) =>
+    els
+      .filter(
+        (e) =>
+          e.getAttribute('rel') !== 'noopener noreferrer' ||
+          getComputedStyle(e).textDecorationLine === 'none',
+      )
+      .map((e) => e.textContent ?? ''),
+  );
+  expect(bad, 'every source link needs rel="noopener noreferrer" and a visible underline').toEqual([]);
+});

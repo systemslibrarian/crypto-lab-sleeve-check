@@ -26,6 +26,8 @@ export default defineConfig({
       name: 'a11y',
       testMatch: /a11y\.spec\.ts/,
       // Dark is the only theme this lab ships; scan what visitors actually get.
+      // Chromium only, deliberately: the axe gate is a deterministic oracle and
+      // running it three ways would triple the cost for no extra signal.
       use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
     },
     {
@@ -33,6 +35,14 @@ export default defineConfig({
       testMatch: /claims\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
     },
+    // The critical-path journey, in every engine. Zero axe violations and zero
+    // horizontal overflow are necessary and NOT sufficient for visual quality:
+    // the 190px of dead space this lab shipped under its mobile hero passed
+    // both. `flows.spec.ts` asserts geometry as well as behaviour.
+    { name: 'flows-chromium', testMatch: /flows\.spec\.ts/, use: { ...devices['Desktop Chrome'], colorScheme: 'dark' } },
+    { name: 'flows-firefox', testMatch: /flows\.spec\.ts/, use: { ...devices['Desktop Firefox'], colorScheme: 'dark' } },
+    { name: 'flows-webkit', testMatch: /flows\.spec\.ts/, use: { ...devices['Desktop Safari'], colorScheme: 'dark' } },
+    { name: 'flows-mobile', testMatch: /flows\.spec\.ts/, use: { ...devices['Pixel 5'], colorScheme: 'dark' } },
   ],
   webServer: {
     // Build before serving: `vite preview` only serves whatever is already in

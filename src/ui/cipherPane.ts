@@ -17,7 +17,7 @@ import {
   type Block,
 } from '../gost/kuznyechik';
 import * as V from '../gost/vectors';
-import { clear, el, hex2, verdict } from './dom';
+import { cite, clear, el, hex2, verdict } from './dom';
 
 const STAGES = ['state', 'afterX', 'afterS', 'afterL'] as const;
 type Stage = (typeof STAGES)[number];
@@ -220,6 +220,21 @@ export function renderCipherPane(root: HTMLElement, onVerified: () => void): voi
 
   root.appendChild(
     el('section', { class: 'card' }, [
+      el('h3', { text: 'One thing the RFC gets wrong, and how this code handles it' }),
+      el('p', { class: 'note' }, [
+        'RFC 7801 \u00A74.2 as published multiplies \u03B4(a\u2081\u2085) twice and \u03B4(a\u2081\u2084) ' +
+          'never. That is a typo: with the text taken literally, the RFC\u2019s own \u00A75 vectors do ' +
+          'not reproduce \u2014 which is itself a test in this repo. The corrected coefficient is what ' +
+          'runs above. ',
+        el('span', { class: 'src' }, [
+          'The correction is ',
+          cite('eid6928'),
+          ' (Technical, status Reported). Note that the RFC\u2019s one Verified erratum, ',
+          cite('eid4660'),
+          ', is editorial and unrelated \u2014 it fixes a single letter in the \u00A73.2 definition of ' +
+            '\u03B4 and changes no value.',
+        ]),
+      ]),
       el('h3', { text: 'What this pane does not claim' }),
       el('p', { class: 'note' }, [
         'Matching the RFC vectors shows this implementation agrees with the standard. It says nothing ' +

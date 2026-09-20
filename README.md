@@ -139,12 +139,23 @@ than as a table.
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173/crypto-lab-sleeve-check/
-npm test             # unit + KAT suite
-npm run build        # typecheck, then production build
-npm run test:a11y    # axe WCAG 2.1 A/AA gate against the production build
-npm run test:claims  # the claims suite
+npm run verify       # everything: unit, build, all Playwright projects, count check
 ```
+
+Or piece by piece:
+
+```bash
+npm run dev            # http://localhost:5173/crypto-lab-sleeve-check/
+npm test               # unit + KAT suite (Vitest)
+npm run build          # typecheck, then production build
+npm run test:a11y      # axe WCAG 2.1 A/AA gate against the production build
+npm run test:claims    # the claims suite
+npm run test:flows     # the critical path in Chromium, Firefox, WebKit, mobile
+npm run test:mutation  # re-prove that the tests bite (see below)
+npm run check:links    # re-check that every cited source still resolves
+```
+
+`test:flows` needs the other engines: `npx playwright install firefox webkit`.
 
 ## Related Demos
 
@@ -157,7 +168,8 @@ npm run test:claims  # the claims suite
 
 ## Build & Verify
 
-**117 tests, all executed in CI: 91 Vitest + 24 Playwright claims + 2 axe gates.**
+**158 tests, all executed in CI: 91 Vitest + 29 Playwright claims + 36 cross-browser flow runs + 2 axe gates.**
+`npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 
 Known-answer tests and their fixture files:
 
@@ -191,6 +203,47 @@ and 380 pixels, driving every state the lab renders — both lock cards, the
 stepped round, the passing KAT, the empty and the filled grid, the coset view on
 π and on AES, and every failure state reachable by breaking a constant. Zero
 WCAG 2.1 A/AA violations, and axe's `incomplete` bucket is asserted too.
+
+### Cross-browser and layout evidence
+
+`e2e/flows.spec.ts` runs the critical path in Chromium, Firefox, WebKit and a
+Pixel 5 viewport, and adds the geometry assertions axe cannot make. That
+distinction is not theoretical: this lab shipped a mobile hero with **190px of
+dead space** under it — the fleet template's `flex: 1 1 22rem` becoming a
+*height* once the container turned into a column — and it passed both the axe
+gate and the reflow check the whole time. Zero violations and zero horizontal
+overflow are necessary and not sufficient.
+
+### Proving the tests bite
+
+`npm run test:mutation` replays the §4.1c mutation ledger in `scripts/mutation.mjs`.
+For each entry it inverts one thing in the source, requires the **build to
+succeed** and the **bundle hash to change** (so the mutation demonstrably reached
+the browser), runs the test that owns it, and requires that test to fail *naming*
+the finding — then restores and checks the hash comes back. It refuses to start
+on a dirty tree, because a run that dies mid-check otherwise strands an inverted
+condition in a file that also holds real work.
+
+A mutation that leaves every test green is reported as a **dead oracle**, and it
+is evidence about the source rather than the tests. That is how the redundant
+size check in `additiveCosetOf` was found and deleted (`d2ff0ff`) instead of
+being given a test that could not fail.
+
+### Source traceability
+
+Every primary source is declared once in `src/ui/sources.ts` and rendered both
+beside the sentence it supports and in the on-page bibliography. The claims
+suite asserts that every dated record entry carries a link, that each named
+technical claim links its source where the claim is made, and that nothing is
+cited without appearing in the bibliography. `npm run check:links` re-checks
+that all twelve still resolve; it is deliberately outside the CI gate, because a
+source going offline is not a reason to stop shipping a correct page.
+
+### Accessibility beyond the gate
+
+`docs/assistive-technology.md` lists what is automated and gating, and carries
+the manual screen-reader script. **That manual pass has not been run**, and the
+document says so rather than implying coverage automation cannot provide.
 
 ## References
 
