@@ -55,8 +55,12 @@ export function additiveCosetOf(outputs: readonly number[]): { offset: number; s
   if (outputs.length !== 15) return null;
   const diffs = new Set<number>();
   for (const y1 of outputs) for (const y2 of outputs) diffs.add(y1 ^ y2);
-  if (diffs.size !== 16) return null;
   const space = [...diffs].sort((a, b) => a - b);
+  // No `diffs.size === 16` test here, deliberately. Mutation testing showed one
+  // to be unreachable: a GF(2) subspace has 2^k elements, so `isSubspace`
+  // already rejects every size but 1, 2, 4, 8, 16, 32...; and the definition
+  // check at the end requires |space| - 1 === 15, which rejects the rest. A
+  // branch no input can reach is dead code, not a guard.
   if (!isSubspace(space)) return null;
 
   const members = new Set(outputs);

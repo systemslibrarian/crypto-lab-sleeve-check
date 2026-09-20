@@ -157,7 +157,7 @@ npm run test:claims  # the claims suite
 
 ## Build & Verify
 
-**115 tests, all executed in CI: 89 Vitest + 24 Playwright claims + 2 axe gates.**
+**117 tests, all executed in CI: 91 Vitest + 24 Playwright claims + 2 axe gates.**
 
 Known-answer tests and their fixture files:
 

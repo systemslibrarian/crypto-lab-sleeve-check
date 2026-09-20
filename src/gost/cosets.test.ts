@@ -125,6 +125,23 @@ describe('additiveCosetOf', () => {
     expect(additiveCosetOf([1, 2, 3])).toBeNull();
   });
 
+  it('rejects 15 values whose difference set is not closed under XOR', () => {
+    // Difference set has 15 entries, which is not a power of two, so it cannot
+    // be a subspace -- this is the path the deleted size check duplicated.
+    expect(additiveCosetOf([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 16])).toBeNull();
+  });
+
+  it('rejects a difference set that IS a subspace but of the wrong dimension', () => {
+    // 15 values whose pairwise XORs span a FIVE-dimensional space (32 elements),
+    // so `isSubspace` passes and the definition check at the end is the only
+    // thing that rejects them. This is the second half of what the deleted
+    // size check duplicated.
+    const fiveDim = [20, 30, 4, 12, 31, 1, 2, 17, 3, 11, 18, 26, 16, 6, 27];
+    const diffs = new Set(fiveDim.flatMap((a) => fiveDim.map((b) => a ^ b)));
+    expect(diffs.size, 'the fixture really is 5-dimensional').toBe(32);
+    expect(additiveCosetOf(fiveDim.map((v) => 0xa0 ^ v))).toBeNull();
+  });
+
   it('recovers offset and space from a set it built itself', () => {
     const space = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     const offset = 0xa0;
