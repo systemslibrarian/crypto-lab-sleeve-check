@@ -142,7 +142,9 @@ const LEDGER = [
     // this ledger reported a DEAD ORACLE here, and it was right -- the source
     // was correct and the coverage was missing.
     command: 'npx playwright test --project=claims --grep "retires the standing verdict"',
-    names: 'the two panes must report the same distance',
+    // The assertion carries this message so the ledger pins WHICH check caught
+    // the mutation, without coupling to the reporter's output format.
+    names: 'a broken constant must retire the standing verdict',
   },
   {
     id: 'negative-claim',

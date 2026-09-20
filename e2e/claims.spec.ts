@@ -523,7 +523,10 @@ test('editing a constant retires the standing verdict, and the page says so', as
 
   // The stale verdict is gone, the page says it was withdrawn, and it reports
   // the same distance pane 2 is showing -- a cross-check between two surfaces.
-  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'fail');
+  await expect(
+    page.locator('#standing-verdict'),
+    'a broken constant must retire the standing verdict',
+  ).toHaveAttribute('data-tone', 'fail');
   await expect(page.locator('#standing-verdict')).not.toContainText('STRUCTURE RECOVERED');
   await expect(page.locator('#standing-verdict')).toContainText('RETIRED');
   await expect(page.locator('#standing-verdict')).toContainText('withdrawn');
