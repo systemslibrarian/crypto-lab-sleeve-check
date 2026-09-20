@@ -222,10 +222,19 @@ function apply(entry, forward) {
   write(entry.file, text.replace(from, to));
 }
 
-// Rule 5: refuse to start on a dirty tree.
-const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: ROOT, encoding: 'utf8' }).trim();
+// Rule 5: refuse to start with uncommitted changes to TRACKED files.
+//
+// Untracked files are excluded deliberately. The risk this guards against is a
+// run dying with an inverted condition stranded in a file that also holds real
+// work -- which can only happen to a file the ledger edits, and every one of
+// those is tracked. Blocking on an untracked scratch file would just teach
+// people to pass the override.
+const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+}).trim();
 if (dirty && !process.env.MUTATION_ALLOW_DIRTY) {
-  console.error('Refusing to run: the working tree is dirty.\n');
+  console.error('Refusing to run: there are uncommitted changes to tracked files.\n');
   console.error(dirty);
   console.error(
     '\nCommit first. A run that dies mid-check otherwise strands an inverted condition in a file\n' +
