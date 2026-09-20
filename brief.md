@@ -244,3 +244,72 @@ flowing from π into a break.
 - Bonnetain, Perrin, Tian, "Anomalies and Vector Space Search: Tools for
   S-Box Reverse-Engineering". eprint 2019/528.
 - FIPS 197 for the AES S-box control.
+## VERIFIED DURING BUILD (2026-09-20) — recorded as the VERIFY section asks
+
+Primary sources fetched and checked, not asserted.
+
+INV-7, the L polynomial. RFC 7801 §3.2 defines field Q as GF(2)[x]/p(x) with
+p(x) = x^8 + x^7 + x^6 + x + 1, i.e. **0x1C3**. That is the field §4.2's linear
+transformation l is computed in. It is NOT the TKlog representation field
+(0x11D), and AES brings a third (0x11B). All three are named in
+`src/gost/field.ts`; nothing there has a default modulus.
+
+The §4.2 coefficient list, a_15 down to a_0:
+148, 32, 133, 16, 194, 192, 1, 251, 1, 192, 194, 16, 133, 32, 148, 1.
+
+ERRATA — the brief's INV-1 needs correcting. EID 4660 does exist and is
+Verified, but it is **Editorial** and applies to **§3.2**: "belonging to Z" ->
+"belonging to Q" in the definition of delta. It changes no value and no vector.
+The erratum that matters for implementation is **EID 6928** (Technical, status
+**Reported**, not Verified), against §4.2: the published text reads
+`148*delta(a_15) + 32*delta(a_15)` — a_15 twice, a_14 never. The RFC's own §5
+vectors do not reproduce under the literal text, which `kuznyechik.test.ts`
+demonstrates rather than asserts. So "the errata-incorporated rendering" is
+right, but the erratum to cite is 6928.
+
+RFC 6986 prints the S-box in **§6.2** "Nonlinear Bijections of Binary Vector
+Sets". Both RFCs' tables were extracted separately from their own plain text and
+are byte-identical; pi[0] = 252 = 0xFC = cstt, as §1.6 predicts.
+
+PORT HAZARD, resolved. In Perrin's SAGE script `int(F.fetch_int(x)._log_repr())`
+gives the multiplicative identity the log representative **255, not 0**. With 0,
+the x = 1 branch computes kappa(16) — outside kappa's 4-bit domain — pi(1) comes
+out 0xFC instead of 0xEE, and the result collides with pi(0). The tell that 255
+is right: kappa's argument is then exactly 1..15 on that branch and 0..15
+overall. This is the §1.6 "log of the identity element" hazard.
+
+§1.4 AES TOGGLE — the brief's phrasing is right but a naive implementation of it
+would ship something false. "The coset selector run over AES shows no
+corresponding partition" is correct; "AES's cosets do not land on additive
+cosets" is NOT. All 17 of AES's cosets DO land on additive cosets of some
+4-dimensional space, because a multiplicative coset of F*_16 already is a
+4-dimensional subspace minus zero, inversion permutes those, and AES's affine
+layer is GF(2)-linear. The real measurement is how many DISTINCT spaces the 17
+landing sets use: pi uses 2 (sixteen cosets on the subfield F_16 itself, plus
+the a = 1 exception on span(lambda)), AES uses 17. Only pi's tiles the output.
+That count is what the page displays and what `claims.spec.ts` checks.
+
+§1.4 PANE 3c vs NON-GOALS. §1.4 describes Bannier's result as a "backdoor
+condition", but the non-goals forbid the word in shipped copy. The stricter
+reading wins: the condition is named and described without it, and
+`claims.spec.ts` enforces the absence of backdoor, dishonest and malicious
+across all three panes with every disclosure open.
+
+CATALOG GREPS (reported, not acted on — no catalog file was edited).
+- `CATEGORIES` in `crypto-lab/index.html` holds 16 chips: FOUNDATIONS,
+  ENCRYPTION, SIGNATURES, KEY EXCHANGE, PROTOCOLS, MPC & THRESHOLD, PRIVACY,
+  ZERO-KNOWLEDGE, HOMOMORPHIC, HASHING & KDFS, RANDOMNESS, POST-QUANTUM,
+  ATTACKS, REAL-WORLD SYSTEMS, STEGANOGRAPHY, HISTORICAL. No new chip is needed.
+  Proposed placement: `data-category="FOUNDATIONS | REAL-WORLD SYSTEMS"` in the
+  Cryptanalysis section. ATTACKS is the tempting chip and is wrong here — the
+  non-goals rule out framing this as an attack.
+- Existing coverage that overlaps: `crypto-lab-world-ciphers` (Kuznyechik
+  encrypt/decrypt plus "S-box analysis", accent #ffb84d) and
+  `crypto-lab-world-hashes` (Streebog). Neither touches S-box structure
+  recovery, NUMS as a checkable property, or the TKlog. No "first" or "only"
+  phrasing was drafted, in this repo or for the card.
+- `crypto-lab-hidden-bit` exists on GitHub (a security-game lab: IND-CPA,
+  CCA2, EUF-CMA). It is unrelated in subject, so no copy patterns were reused
+  and the rename away from "hidden-box" collides with nothing.
+
+ACCENT. Assigned centrally as #9f88ff and set on `:root` in `src/styles.css`.

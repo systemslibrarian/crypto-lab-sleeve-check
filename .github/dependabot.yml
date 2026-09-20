@@ -12,7 +12,7 @@
 # Pages v5/v6 jumps were verified green across all 176 repos on 2026-08-18.
 #
 # The minor/patch group and the actions group auto-merge once this lab's own gate
-# passes on the PR -- see the dependabot-auto-merge job in ci.yml.
+# passes on the PR -- see the dependabot-auto-merge job in deploy.yml.
 version: 2
 updates:
   - package-ecosystem: "npm"
