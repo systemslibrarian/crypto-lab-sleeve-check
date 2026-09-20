@@ -25,7 +25,8 @@ import {
  * renderings live — one flipped lambda bit and its sticky-red mismatches, a
  * collapsed `s` with its constraint warning, the coset view showing the
  * partition gone, an unparseable constant behind an `aria-invalid` boundary,
- * and the reset back to distance 0; a hovered tab; pane 3's standing verdict,
+ * pane 3's standing verdict in its RETIRED state, and the reset back to
+ * distance 0; a hovered tab; pane 3's standing verdict,
  * its probability scale on both sides of the crossing point, its disclosure
  * and a focused reference link; and finally the tablist wrapping under
  * ArrowRight. Every one of those states is scanned, at desktop and phone width.

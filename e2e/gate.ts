@@ -822,6 +822,16 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('#in-cstt')).toHaveAttribute('aria-invalid', 'true');
   await scanAt('pane 2 state D: an unparseable constant, aria-invalid boundary');
 
+  // Pane 3 in its RETIRED state. This is a third rendering of the standing
+  // verdict -- not the idle one a first visitor sees, and not the green one the
+  // reset path reaches -- so without this step it would be the one state the
+  // page can paint that nothing ever scans.
+  await openPane(page, /The Claim/, '#pane-claim');
+  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'fail');
+  await expect(page.locator('#standing-verdict')).toContainText('RETIRED');
+  await scanAt('pane 3: the standing verdict retired by a broken constant');
+
+  await openPane(page, /The Table/, '#pane-table');
   await page.locator('#reset-constants').click();
   await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'pass');
   await expect(page.locator('#in-cstt')).toHaveAttribute('aria-invalid', 'false');
