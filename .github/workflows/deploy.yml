@@ -1,8 +1,9 @@
 name: Deploy to GitHub Pages
 
-# ONE workflow, ONE gate. The gate a Dependabot bump merges against is literally
-# the gate the deploy runs -- a single `build` job, named in `needs:` by both
-# `deploy` and `dependabot-auto-merge`. There is deliberately no second ci.yml:
+# ONE workflow. The gate a Dependabot bump merges against is literally the gate
+# the deploy runs: every job below that judges anything -- `build` and
+# `verdict-coverage` -- is named in `needs:` by BOTH `deploy` and
+# `dependabot-auto-merge`, so neither can hang off a lighter subset. There is deliberately no second ci.yml:
 # elsewhere in this fleet a split pair drifted apart, auto-merge hung off the
 # lighter of the two, a grouped minor bump floated a deliberately pinned
 # @playwright/test version back up past a gate that could not see what the pin
@@ -71,7 +72,12 @@ jobs:
       # Every Playwright project, in one command. What a Dependabot bump merges
       # against is therefore exactly what deploys -- which is the whole point of
       # this file having one gate job.
-      - name: Axe gate, claims suite, and cross-browser flows
+      - name: Axe gate, claims suite, verdict coverage, and cross-browser flows
+        # `playwright test` with no --project runs EVERY project, the verdicts
+        # one included. The separate `verdict-coverage` job below runs it again
+        # on purpose: that job is what branch protection names as required, and
+        # this line is what makes coverage inseparable from the deploy gate even
+        # if that job is ever removed.
         run: npm run test:e2e:all
       # Upload only on the paths that can actually deploy. On a pull request
       # `deploy` is skipped, so an artifact there is work nothing consumes.
@@ -87,8 +93,46 @@ jobs:
         with:
           path: dist
 
+  # Verdict coverage, as a check that can BLOCK.
+  #
+  # The file's one-gate rule is about not letting auto-merge hang off a LIGHTER
+  # copy of the deploy gate. This job is not a copy of `build`: it is a distinct
+  # check, and BOTH `deploy` and `dependabot-auto-merge` name it in `needs:`, so
+  # the property the rule protects -- what a bump merges against is exactly what
+  # deploys -- still holds.
+  #
+  # It exists as its own job because a step is not a status check. Auto-merge
+  # waits only on REQUIRED checks and a direct push to main skips PR checks
+  # entirely, so "verdict coverage runs somewhere in CI" is decoration unless
+  # there is a named check for branch protection to require. This is that name.
+  #
+  # Chromium only, and no `npm test`/`vite build` beyond what Playwright's
+  # webServer does: the point is the two coverage detectors and the ledger's
+  # integrity, not a second full gate.
+  verdict-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Cheap, executes nothing, and catches the silent rot: a ledger entry
+      # whose `from` text no longer matches the source is a mutation that can
+      # never be applied, and nothing else notices until someone runs the ledger.
+      - name: The mutation ledger still matches the source
+        run: npm run check:ledger
+      - run: npx playwright install --with-deps chromium
+      # Walks the rendered page for `data-verdict`, fails on a marker no
+      # mutation covers, and fails on verdict wording or styling rendered
+      # outside a marker.
+      - name: Every rendered verdict is marked and covered
+        run: npm run test:verdicts
+
   deploy:
-    needs: build
+    needs: [build, verdict-coverage]
     permissions:
       contents: read
       pages: write
@@ -109,7 +153,7 @@ jobs:
   # Dependabot only. `needs: build` is the whole safety argument -- the gate
   # decides, not the version number.
   dependabot-auto-merge:
-    needs: build
+    needs: [build, verdict-coverage]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10

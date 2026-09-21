@@ -168,7 +168,7 @@ npm run check:links    # re-check that every cited source still resolves
 
 ## Build & Verify
 
-**160 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 36 cross-browser flow runs + 2 axe gates.**
+**173 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 13 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 It is a step in the CI gate as well as in `npm run verify`, so the sentence cannot go stale on
 `main` with nothing red.
@@ -216,9 +216,48 @@ dead space** under it — the fleet template's `flex: 1 1 22rem` becoming a
 gate and the reflow check the whole time. Zero violations and zero horizontal
 overflow are necessary and not sufficient.
 
+### Every rendered verdict, and how coverage of them is taken
+
+This lab renders ten outcomes, and each one carries a `data-verdict` marker in
+the DOM:
+
+| marker | what it reports | mutation that proves it can go red |
+|---|---|---|
+| `kat-encrypt` | encrypt reaches the RFC 7801 §5.5 ciphertext | `kat-encrypt-verdict` |
+| `kat-decrypt` | decrypt recovers the §5.6 plaintext | `kat-decrypt-verdict` |
+| `diff-verdict` | Hamming distance of the rebuild against RFC 7801 §4.1 | `diff-verdict-canned` |
+| `reuse-verdict` | the same rebuild against the RFC 6986 S-box | `reuse-verdict-canned` |
+| `miss-list` | which inputs differ, by name | `miss-list-canned` |
+| `coset-verdict` | whether the selected coset still lands on an additive coset | `coset-verdict-canned` |
+| `space-tally` | how many distinct landing spaces the 17 cosets use | `space-tally-threshold` |
+| `constraint-msg` | which generator precondition the edited constants broke | `constraint-msg-silenced` |
+| `standing-verdict` | the pane 3 summary of panes 1 and 2 | `verdict-retirement` |
+| `scale-compare` | whether the lottery run has got rarer than the coincidence | `scale-compare-branch` |
+
+**Coverage is derived by walking the rendered page, not from that table.**
+`e2e/verdicts.spec.ts` drives every state the lab renders a verdict in — both
+lock cards, the passing KAT, the empty and the filled grid, the AES control, the
+failure states a broken constant reaches, and both readings of the probability
+scale — collects every `data-verdict` it finds, and fails if any of them has no
+mutation in `scripts/mutation-ledger.json`. It fails in the other direction too,
+when the ledger names a marker the page has stopped rendering.
+
+A second check fails on verdict **wording** (`PASS`, `MISMATCH`, `NO COSET` and
+the rest, upper case and whole-word) or verdict **styling** (`.verdict`,
+`.is-pass`, `.is-fail`, `[data-tone]`) rendered anywhere outside a marked
+subtree. That is what stops the easy way around the first check: bolting a raw
+banner onto the page and simply not marking it. Both detectors are themselves
+watched failing — two tests inject the exact defect, an unmarked banner and a
+marker absent from the ledger, and require each detector to report it.
+
+The ledger is data, in `scripts/mutation-ledger.json`, precisely so the runner
+and the coverage check read the same list. Two copies of a list is how a verdict
+ends up covered on paper and uncovered in fact.
+
 ### Proving the tests bite
 
-`npm run test:mutation` replays the §4.1c mutation ledger in `scripts/mutation.mjs`.
+`npm run test:mutation` replays the §4.1c mutation ledger in
+`scripts/mutation-ledger.json` through the runner in `scripts/mutation.mjs`.
 For each entry it inverts one thing in the source, requires the **build to
 succeed** and the **bundle hash to change** (so the mutation demonstrably reached
 the browser), runs the test that owns it, and requires that test to fail *naming*

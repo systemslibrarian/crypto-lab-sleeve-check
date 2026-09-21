@@ -51,6 +51,15 @@ export type VerdictTone = 'idle' | 'pass' | 'fail';
  * A verdict line. Colour is never the only channel: every state carries a mark
  * glyph and a word (WCAG 1.4.1), and the region is a live status so a screen
  * reader hears the change.
+ *
+ * `data-verdict` is the COVERAGE MARKER, and it is not decoration. Coverage of
+ * this lab's rendered outcomes is derived by walking the live page for
+ * `[data-verdict]`, not from anyone's enumeration of what the page shows -- a
+ * list in a spec file is a self-report, and a self-report is what let a sibling
+ * lab ship a headline claim that was a literal. `e2e/verdicts.spec.ts` fails if
+ * a rendered marker has no mutation in `scripts/mutation-ledger.json`, and
+ * fails again if verdict wording or verdict styling is rendered OUTSIDE a
+ * marker -- which is what catches a raw banner bolted on later.
  */
 export function verdict(id: string): {
   node: HTMLElement;
@@ -59,7 +68,11 @@ export function verdict(id: string): {
 } {
   const mark = el('span', { class: 'verdict-mark', 'aria-hidden': 'true' });
   const body = el('span');
-  const node = el('p', { class: 'verdict is-idle', id, role: 'status', 'aria-live': 'polite' }, [mark, body]);
+  const node = el(
+    'p',
+    { class: 'verdict is-idle', id, 'data-verdict': id, role: 'status', 'aria-live': 'polite' },
+    [mark, body],
+  );
   let current: VerdictTone = 'idle';
   return {
     node,

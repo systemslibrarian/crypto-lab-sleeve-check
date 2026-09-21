@@ -7,8 +7,11 @@
  * in the SOURCE, proves the mutation actually reached the browser, runs the
  * test that owns it, and requires that test to fail NAMING the finding.
  *
- * The five rules it enforces, each learned the hard way:
+ * The six rules it enforces, each learned the hard way:
  *
+ *  0. The owning test must PASS on the UNMUTATED tree, in this same run. A
+ *     mutation "caught" by a test that was already red is not caught by
+ *     anything; the run has to record the green baseline beside the red one.
  *  1. The build must SUCCEED under the mutation. A mutation that breaks `tsc`
  *     proves nothing: the suite would run against the last good bundle and pass.
  *  2. The bundle hash must CHANGE, which is what proves the mutation reached the
@@ -42,145 +45,31 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const DIST = join(ROOT, 'dist', 'assets');
 
 /**
- * Each entry names the highest-risk branch it protects. `names` is the string
- * the failing test must print: without it, a test that fails for some unrelated
- * reason would read as proof.
+ * The ledger itself is DATA, in scripts/mutation-ledger.json, because two
+ * different things have to read it:
+ *
+ *   - this runner, which applies each mutation and requires the owning test to
+ *     go red naming the finding;
+ *   - e2e/verdicts.spec.ts, which walks the RENDERED page for `data-verdict`
+ *     markers and fails on any marker the ledger does not cover.
+ *
+ * Keeping it as a literal in this file would have meant the coverage check
+ * carrying its own copy of the list, and two copies of a list is how a verdict
+ * ends up covered on paper and uncovered in fact.
+ *
+ * Fields:
+ *   id       short name, also the CLI selector
+ *   kind     `unit` (Vitest) or `browser` (Playwright)
+ *   marker   the `data-verdict` id this mutation covers, or null when the
+ *            mutation guards something that is not a rendered verdict
+ *   why      the branch it protects, in one line
+ *   file     the source file to edit
+ *   from/to  the exact text to swap, unique in BOTH directions
+ *   command  the test that owns it -- ONE test where possible, so the failure
+ *            is that verdict's own assertion and not the suite going red
+ *   names    the string the failing output must contain
  */
-const LEDGER = [
-  {
-    id: 'identity-log',
-    kind: 'unit',
-    why: 'log_alpha(1) must be 255, not 0 -- the single easiest thing in this lab to get subtly wrong',
-    file: 'src/gost/field.ts',
-    from: 'log[v] = k === 0 ? 255 : k;',
-    to: 'log[v] = k;',
-    command: 'npx vitest run src/gost/tklog.test.ts',
-    names: 'tklog(i) === pi[i] for all 256 i',
-  },
-  {
-    id: 'subgroup-branch',
-    kind: 'unit',
-    why: 'the 17 | l branch of the TKlog, which the brief calls the highest off-by-one risk here',
-    file: 'src/gost/tklog.ts',
-    from: '  if (i === 0) {',
-    to: '  if (i === 1) {',
-    command: 'npx vitest run src/gost/tklog.test.ts',
-    names: 'Hamming distance is strictly 0',
-  },
-  {
-    id: 'l-coefficient',
-    kind: 'unit',
-    why: 'the RFC 7801 §4.2 coefficient corrected by erratum EID 6928',
-    file: 'src/gost/kuznyechik.ts',
-    from: '148, 32, 133,',
-    to: '148, 33, 133,',
-    command: 'npx vitest run src/gost/kuznyechik.test.ts',
-    names: '5.5: encrypt reaches the published ciphertext',
-  },
-  {
-    id: 'kuznyechik-field',
-    kind: 'unit',
-    why: 'INV-7 -- the L transformation must use field Q (0x1C3), not the TKlog field',
-    file: 'src/gost/field.ts',
-    from: 'export const POLY_KUZNYECHIK = 0x1c3;',
-    to: 'export const POLY_KUZNYECHIK = 0x11d;',
-    command: 'npx vitest run src/gost/kuznyechik.test.ts',
-    names: 'Section 5 known-answer tests',
-  },
-  {
-    id: 'decrypt-round-order',
-    kind: 'unit',
-    why: 'the inverse round order, where §4.5.2 prints its composition differently from §5.6',
-    file: 'src/gost/kuznyechik.ts',
-    from: '    state = transformSInv(transformLInv(state));',
-    to: '    state = transformLInv(transformSInv(state));',
-    command: 'npx vitest run src/gost/kuznyechik.test.ts',
-    names: '5.6: decrypt recovers the published plaintext',
-  },
-  {
-    id: 'aes-affine',
-    kind: 'unit',
-    why: 'the FIPS 197 affine constant, which is what makes AES the control it is',
-    file: 'src/gost/aes.ts',
-    from: 'AES_AFFINE_CONSTANT) & 0xff;',
-    to: 'AES_AFFINE_CONSTANT ^ 1) & 0xff;',
-    command: 'npx vitest run src/gost/aes.test.ts',
-    names: 'matches the published lookup table at the spot checks',
-  },
-  {
-    id: 'subspace-closure',
-    kind: 'unit',
-    why: 'the closure test that is the real gate on "is this landing set a coset?"',
-    file: 'src/gost/field.ts',
-    from: 'for (const a of s) for (const b of s) if (!s.has(a ^ b)) return false;',
-    to: 'for (const a of s) for (const b of s) if (!s.has(a ^ b)) return true;',
-    command: 'npx vitest run src/gost/cosets.test.ts src/gost/field.test.ts',
-    names: 'isSubspace rejects a set missing 0',
-  },
-  {
-    id: 'source-path-isolation',
-    kind: 'unit',
-    why: 'INV-5 -- the generator must not be able to see the published table',
-    file: 'src/gost/tklog.ts',
-    from: "import { buildLogTables, gfPow, POLY_TKLOG, type LogTables } from './field';",
-    to:
-      "import { buildLogTables, gfPow, POLY_TKLOG, type LogTables } from './field';\n" +
-      "import { PI_RFC7801 } from './reference';\n" +
-      'export const MUTATION_PROBE = PI_RFC7801.length;',
-    command: 'npx vitest run src/gost/moduleGraph.test.ts',
-    names: 'tklog.ts does not import the published table',
-  },
-  {
-    id: 'verdict-retirement',
-    kind: 'browser',
-    why: 'a broken constant must retire the green verdict, not leave a stale one on screen',
-    file: 'src/ui/tablePane.ts',
-    from: '      onDiffed(diffTables(generated, PI).distance);\n    }',
-    to: '      onDiffed(0);\n    }',
-    // Pointed at the retirement test, not the 4.1d fixture: the fixture never
-    // edits a constant, so it never reaches this call site. The first run of
-    // this ledger reported a DEAD ORACLE here, and it was right -- the source
-    // was correct and the coverage was missing.
-    command: 'npx playwright test --project=claims --grep "retires the standing verdict"',
-    // The assertion carries this message so the ledger pins WHICH check caught
-    // the mutation, without coupling to the reporter's output format.
-    names: 'a broken constant must retire the standing verdict',
-  },
-  {
-    id: 'negative-claim',
-    kind: 'browser',
-    why: '§4.1d -- the limitation must be on screen in the all-green fixture state',
-    file: 'src/ui/claimPane.ts',
-    // Replaced rather than deleted. An empty `to` matches at every position in
-    // the file, so the reverse direction cannot be checked for uniqueness --
-    // the first run of this ledger found 16192 occurrences of '' and stranded
-    // the mutation. A mutation must be unique in BOTH directions.
-    from: 'It is not an attack, and it does not become one by being exact. ',
-    to: 'It is an attack. ',
-    command: 'npx playwright test --project=claims --grep "4.1d"',
-    names: 'It is not an attack',
-  },
-  {
-    id: 'scroller-keyboard-route',
-    kind: 'browser',
-    why: 'WCAG 2.1.1 -- four lookup tables scroll, and axe alone does not catch a missing route',
-    file: 'src/ui/dom.ts',
-    from: "return el('div', { class: 'scroll-x', tabindex: '0', role: 'group', 'aria-label': label }, [child]);",
-    to: "return el('div', { class: 'scroll-x', role: 'group', 'aria-label': label }, [child]);",
-    command: 'npx playwright test --project=a11y --grep 380',
-    names: 'scroll-x',
-  },
-  {
-    id: 'mobile-hero-basis',
-    kind: 'browser',
-    why: 'the flex-basis that leaked into the cross axis and left 190px of dead space on a phone',
-    file: 'src/styles.css',
-    from: '  .cl-hero-main { flex: 0 1 auto; width: 100%; min-width: 0; }',
-    to: '  .cl-hero-main { width: 100%; min-width: 0; }',
-    command: 'npx playwright test --project=flows-chromium --grep "dead space"',
-    names: 'hero dead space at 380px',
-  },
-];
+const LEDGER = JSON.parse(readFileSync(new URL('./mutation-ledger.json', import.meta.url), 'utf8'));
 
 const only = process.argv[2];
 const entries = LEDGER.filter((e) => !only || e.id === only || e.kind === only);
@@ -189,7 +78,12 @@ if (entries.length === 0) {
   process.exit(2);
 }
 
-const sh = (cmd) => execSync(cmd, { cwd: ROOT, stdio: 'pipe', encoding: 'utf8' });
+// CI=1 on purpose. It flips playwright.config.ts's `reuseExistingServer:
+// !process.env.CI` to FALSE, so a browser mutation cannot be judged against a
+// server left listening by an earlier, UNMUTATED run -- which reports a real
+// kill as a survivor and sends someone to fix a check that already works.
+const sh = (cmd) =>
+  execSync(cmd, { cwd: ROOT, stdio: 'pipe', encoding: 'utf8', env: { ...process.env, CI: '1' } });
 
 function bundleHash() {
   const files = readdirSync(DIST).sort();
@@ -262,11 +156,30 @@ if (!build()) {
 const baseline = bundleHash();
 console.log(`Baseline bundle ${baseline}\n`);
 
+/**
+ * The excerpt of a run's output that is worth quoting as evidence: the lines
+ * around the assertion message, not the whole reporter transcript.
+ */
+function excerpt(output, needle) {
+  const lines = output.split('\n');
+  const at = lines.findIndex((l) => l.includes(needle));
+  if (at < 0) return lines.slice(-12).join('\n');
+  return lines.slice(Math.max(0, at - 2), at + 10).join('\n');
+}
+
+const evidence = [];
 const results = [];
 for (const entry of entries) {
   process.stdout.write(`${entry.id.padEnd(26)} `);
   let restored = false;
   try {
+    // Rule 0, and the one this ledger was missing: run the owning test on the
+    // UNMUTATED tree first and require it to PASS. Without that, a red suite
+    // makes every mutation look caught -- the failure was there before the
+    // mutation arrived, and "the test went red" stops being evidence about the
+    // branch. A baseline that is already red is reported, not worked around.
+    const baselineRun = runOwner(entry.command);
+
     apply(entry, true);
     const built = build();
     const mutated = built ? bundleHash() : null;
@@ -276,21 +189,40 @@ for (const entry of entries) {
     build();
     const back = bundleHash();
 
-    const verdict = !built
-      ? 'BUILD BROKE'
-      : mutated === baseline
-        ? 'HASH UNCHANGED'
-        : !owner.failed
-          ? 'DEAD ORACLE'
-          : !owner.output.includes(entry.names)
-            ? 'FAILED FOR THE WRONG REASON'
-            : back !== baseline
-              ? 'NOT RESTORED'
-              : 'OK';
+    const verdict = baselineRun.failed
+      ? 'BASELINE ALREADY RED'
+      : !built
+        ? 'BUILD BROKE'
+        : mutated === baseline
+          ? 'HASH UNCHANGED'
+          : !owner.failed
+            ? 'DEAD ORACLE'
+            : !owner.output.includes(entry.names)
+              ? 'FAILED FOR THE WRONG REASON'
+              : back !== baseline
+                ? 'NOT RESTORED'
+                : 'OK';
     results.push({ entry, verdict, mutated, back });
+    evidence.push(
+      [
+        `=== ${entry.id}${entry.marker ? `   marker: ${entry.marker}` : ''}`,
+        `    ${entry.why}`,
+        `    mutation: ${entry.file}`,
+        `      -  ${entry.from.split('\n').join('\n      -  ')}`,
+        `      +  ${entry.to.split('\n').join('\n      +  ')}`,
+        `    owning test: ${entry.command}`,
+        `    BASELINE (unmutated, same run): ${baselineRun.failed ? 'FAILED' : 'PASSED'}`,
+        `      ${excerpt(baselineRun.output, 'passed').split('\n').join('\n      ')}`,
+        `    MUTATED: bundle ${baseline} -> ${mutated}`,
+        `      ${excerpt(owner.output, entry.names).split('\n').join('\n      ')}`,
+        `    RESTORED: bundle ${back}${back === baseline ? ' (back to baseline)' : ' (NOT BACK)'}`,
+        `    VERDICT: ${verdict}`,
+        '',
+      ].join('\n'),
+    );
     console.log(
       verdict === 'OK'
-        ? `ok    ${baseline} -> ${mutated} -> ${back}   caught by: ${entry.names}`
+        ? `ok    baseline PASS   ${baseline} -> ${mutated} -> ${back}   caught by: ${entry.names}`
         : `${verdict}`,
     );
     if (verdict !== 'OK') console.log(`    ${entry.why}`);
@@ -321,4 +253,12 @@ if (bad.length) {
       'that cannot fail.',
   );
 }
+// The transcript, for the commit body. A mutation quoted without the baseline
+// that passed beside it is not evidence of a kill -- it is evidence that
+// something was red.
+if (process.env.MUTATION_EVIDENCE) {
+  writeFileSync(process.env.MUTATION_EVIDENCE, evidence.join('\n'));
+  console.log(`\nEvidence written to ${process.env.MUTATION_EVIDENCE}`);
+}
+
 process.exit(bad.length ? 1 : 0);

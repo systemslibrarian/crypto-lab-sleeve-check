@@ -160,6 +160,12 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
           // Same `data-tone` contract as every other verdict on the page, so the
           // claims suite's "every verdict reports success" sweep includes this
           // one rather than stepping around it.
+          //
+          // This one is hand-built rather than made by `verdict()` (it has three
+          // states and a body of its own), so it has to carry the coverage
+          // marker explicitly. That is exactly the case the outside-a-marker
+          // check in `e2e/verdicts.spec.ts` exists to catch.
+          'data-verdict': 'standing-verdict',
           'data-tone': everythingGreen ? 'pass' : retired ? 'fail' : 'idle',
           role: 'status',
           'aria-live': 'polite',
@@ -288,7 +294,9 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
       ]),
     );
     readout.appendChild(
-      el('div', { id: 'scale-compare' }, [
+      // Marked: this line is the comparison the whole counting argument turns
+      // on, and it flips between two opposite readings as the slider moves.
+      el('div', { id: 'scale-compare', 'data-verdict': 'scale-compare' }, [
         el('span', { class: 'k', text: 'which is' }),
         shortfall > 0.5
           ? `still 2^${shortfall.toFixed(1)} times likelier than the TKlog coincidence`

@@ -56,22 +56,28 @@ const vitest = vitestCount();
 const pw = playwrightCounts();
 const a11y = pw.get('a11y') ?? 0;
 const claims = pw.get('claims') ?? 0;
+const verdicts = pw.get('verdicts') ?? 0;
 const flows = [...pw].filter(([name]) => name.startsWith('flows-')).reduce((n, [, c]) => n + c, 0);
-const total = vitest + a11y + claims + flows;
+const total = vitest + a11y + claims + verdicts + flows;
 
-const actual = { vitest, claims, flows, a11y, total };
+const actual = { vitest, claims, verdicts, flows, a11y, total };
 console.log(
-  `Counted: ${vitest} Vitest + ${claims} claims + ${flows} cross-browser flows + ${a11y} axe gates = ${total}`,
+  `Counted: ${vitest} Vitest + ${claims} claims + ${verdicts} verdict-coverage + ${flows} cross-browser flows + ${a11y} axe gates = ${total}`,
 );
 
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
-const line = /\*\*(\d+) tests,[^*]*?(\d+) Vitest \+ (\d+) Playwright claims \+ (\d+) cross-browser flow runs \+ (\d+) axe gates\.\*\*/.exec(
-  readme,
-);
+const SENTENCE = (c) =>
+  `**${c.total} tests, all executed in CI: ${c.vitest} Vitest + ${c.claims} Playwright claims + ` +
+  `${c.verdicts} verdict-coverage checks + ${c.flows} cross-browser flow runs + ${c.a11y} axe gates.**`;
+
+const line =
+  /\*\*(\d+) tests,[^*]*?(\d+) Vitest \+ (\d+) Playwright claims \+ (\d+) verdict-coverage checks \+ (\d+) cross-browser flow runs \+ (\d+) axe gates\.\*\*/.exec(
+    readme,
+  );
 if (!line) {
   console.error(
     '\nFAIL: could not find the counts sentence in README.md.\nExpected the shape:\n' +
-      `  **${total} tests, all executed in CI: ${vitest} Vitest + ${claims} Playwright claims + ${flows} cross-browser flow runs + ${a11y} axe gates.**`,
+      `  ${SENTENCE(actual)}`,
   );
   process.exit(1);
 }
@@ -80,20 +86,18 @@ const claimed = {
   total: +line[1],
   vitest: +line[2],
   claims: +line[3],
-  flows: +line[4],
-  a11y: +line[5],
+  verdicts: +line[4],
+  flows: +line[5],
+  a11y: +line[6],
 };
 const wrong = Object.keys(actual).filter((k) => actual[k] !== claimed[k]);
 if (wrong.length) {
   console.error('\nFAIL: the README disagrees with the runners.');
   for (const k of wrong) console.error(`  ${k}: README says ${claimed[k]}, actually ${actual[k]}`);
-  console.error(
-    `\nFix the sentence to read:\n` +
-      `  **${total} tests, all executed in CI: ${vitest} Vitest + ${claims} Playwright claims + ${flows} cross-browser flow runs + ${a11y} axe gates.**`,
-  );
+  console.error(`\nFix the sentence to read:\n  ${SENTENCE(actual)}`);
   process.exit(1);
 }
-if (claimed.vitest + claimed.claims + claimed.flows + claimed.a11y !== claimed.total) {
+if (claimed.vitest + claimed.claims + claimed.verdicts + claimed.flows + claimed.a11y !== claimed.total) {
   console.error('\nFAIL: the README total does not equal the sum of its own parts.');
   process.exit(1);
 }

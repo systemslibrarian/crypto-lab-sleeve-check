@@ -1,0 +1,233 @@
+[
+  {
+    "id": "identity-log",
+    "kind": "unit",
+    "marker": null,
+    "why": "log_alpha(1) must be 255, not 0 -- the single easiest thing in this lab to get subtly wrong",
+    "file": "src/gost/field.ts",
+    "from": "log[v] = k === 0 ? 255 : k;",
+    "to": "log[v] = k;",
+    "command": "npx vitest run src/gost/tklog.test.ts",
+    "names": "tklog(i) === pi[i] for all 256 i"
+  },
+  {
+    "id": "subgroup-branch",
+    "kind": "unit",
+    "marker": null,
+    "why": "the 17 | l branch of the TKlog, which the brief calls the highest off-by-one risk here",
+    "file": "src/gost/tklog.ts",
+    "from": "  if (i === 0) {",
+    "to": "  if (i === 1) {",
+    "command": "npx vitest run src/gost/tklog.test.ts",
+    "names": "Hamming distance is strictly 0"
+  },
+  {
+    "id": "l-coefficient",
+    "kind": "unit",
+    "marker": null,
+    "why": "the RFC 7801 section 4.2 coefficient corrected by erratum EID 6928",
+    "file": "src/gost/kuznyechik.ts",
+    "from": "148, 32, 133,",
+    "to": "148, 33, 133,",
+    "command": "npx vitest run src/gost/kuznyechik.test.ts",
+    "names": "5.5: encrypt reaches the published ciphertext"
+  },
+  {
+    "id": "kuznyechik-field",
+    "kind": "unit",
+    "marker": null,
+    "why": "INV-7 -- the L transformation must use field Q (0x1C3), not the TKlog field",
+    "file": "src/gost/field.ts",
+    "from": "export const POLY_KUZNYECHIK = 0x1c3;",
+    "to": "export const POLY_KUZNYECHIK = 0x11d;",
+    "command": "npx vitest run src/gost/kuznyechik.test.ts",
+    "names": "Section 5 known-answer tests"
+  },
+  {
+    "id": "decrypt-round-order",
+    "kind": "unit",
+    "marker": null,
+    "why": "the inverse round order, where section 4.5.2 prints its composition differently from section 5.6",
+    "file": "src/gost/kuznyechik.ts",
+    "from": "    state = transformSInv(transformLInv(state));",
+    "to": "    state = transformLInv(transformSInv(state));",
+    "command": "npx vitest run src/gost/kuznyechik.test.ts",
+    "names": "5.6: decrypt recovers the published plaintext"
+  },
+  {
+    "id": "aes-affine",
+    "kind": "unit",
+    "marker": null,
+    "why": "the FIPS 197 affine constant, which is what makes AES the control it is",
+    "file": "src/gost/aes.ts",
+    "from": "AES_AFFINE_CONSTANT) & 0xff;",
+    "to": "AES_AFFINE_CONSTANT ^ 1) & 0xff;",
+    "command": "npx vitest run src/gost/aes.test.ts",
+    "names": "matches the published lookup table at the spot checks"
+  },
+  {
+    "id": "subspace-closure",
+    "kind": "unit",
+    "marker": null,
+    "why": "the closure test that is the real gate on \"is this landing set a coset?\"",
+    "file": "src/gost/field.ts",
+    "from": "for (const a of s) for (const b of s) if (!s.has(a ^ b)) return false;",
+    "to": "for (const a of s) for (const b of s) if (!s.has(a ^ b)) return true;",
+    "command": "npx vitest run src/gost/cosets.test.ts src/gost/field.test.ts",
+    "names": "isSubspace rejects a set missing 0"
+  },
+  {
+    "id": "source-path-isolation",
+    "kind": "unit",
+    "marker": null,
+    "why": "INV-5 -- the generator must not be able to see the published table",
+    "file": "src/gost/tklog.ts",
+    "from": "import { buildLogTables, gfPow, POLY_TKLOG, type LogTables } from './field';",
+    "to": "import { buildLogTables, gfPow, POLY_TKLOG, type LogTables } from './field';\nimport { PI_RFC7801 } from './reference';\nexport const MUTATION_PROBE = PI_RFC7801.length;",
+    "command": "npx vitest run src/gost/moduleGraph.test.ts",
+    "names": "tklog.ts does not import the published table"
+  },
+  {
+    "id": "kat-encrypt-verdict",
+    "kind": "browser",
+    "marker": "kat-encrypt",
+    "why": "pane 1 has no UI route to a failing cipher, so the mutation breaks the cipher and the verdict has to follow it down. A canned PASS survives this as a DEAD ORACLE, which is the point.",
+    "file": "src/gost/kuznyechik.ts",
+    "from": "  for (let r = 0; r < 9; r++) state = lsx(rk[r], state);\n  return transformX(rk[9], state);",
+    "to": "  for (let r = 0; r < 8; r++) state = lsx(rk[r], state);\n  return transformX(rk[9], state);",
+    "command": "npx playwright test --project=verdicts --grep \"kat-encrypt reports pass\"",
+    "names": "kat-encrypt must report pass on the published vector"
+  },
+  {
+    "id": "kat-decrypt-verdict",
+    "kind": "browser",
+    "marker": "kat-decrypt",
+    "why": "the same for the inverse path, and scoped to it: one fewer inverse round leaves the encrypt verdict green, so the two markers are told apart rather than moving together",
+    "file": "src/gost/kuznyechik.ts",
+    "from": "  for (let r = 8; r >= 0; r--) {",
+    "to": "  for (let r = 7; r >= 0; r--) {",
+    "command": "npx playwright test --project=verdicts --grep \"kat-decrypt reports pass\"",
+    "names": "kat-decrypt must recover the published plaintext"
+  },
+  {
+    "id": "diff-verdict-canned",
+    "kind": "browser",
+    "marker": "diff-verdict",
+    "why": "the headline verdict of pane 2, canned to pass the way a careless builder would leave it. The owning test breaks a constant through the UI, so only a tone that follows the distance survives.",
+    "file": "src/ui/tablePane.ts",
+    "from": "    diffVerdict.set(result.equal ? 'pass' : 'fail', result.equal ? '✓' : '✕', [",
+    "to": "    diffVerdict.set('pass', '✓', [",
+    "command": "npx playwright test --project=verdicts --grep \"diff-verdict follows the distance\"",
+    "names": "diff-verdict must go red when the rebuild stops matching"
+  },
+  {
+    "id": "reuse-verdict-canned",
+    "kind": "browser",
+    "marker": "reuse-verdict",
+    "why": "the same canning on the Streebog re-use claim, which is a separate comparison against a separate published table and must retire on its own evidence",
+    "file": "src/ui/tablePane.ts",
+    "from": "    reuseVerdict.set(reuse.equal ? 'pass' : 'fail', reuse.equal ? '✓' : '✕', [",
+    "to": "    reuseVerdict.set('pass', '✓', [",
+    "command": "npx playwright test --project=verdicts --grep \"reuse-verdict follows the Streebog\"",
+    "names": "reuse-verdict must go red when the rebuild stops matching"
+  },
+  {
+    "id": "miss-list-canned",
+    "kind": "browser",
+    "marker": "miss-list",
+    "why": "the mismatch listing pinned to its all-clear branch, so it reports \"No mismatches\" over a grid that is painted red",
+    "file": "src/ui/tablePane.ts",
+    "from": "    missList.textContent = result.equal\n      ? everMismatched.size > 0",
+    "to": "    missList.textContent = true\n      ? everMismatched.size > 0",
+    "command": "npx playwright test --project=verdicts --grep \"miss-list names the inputs\"",
+    "names": "miss-list must name the mismatching inputs once there are some"
+  },
+  {
+    "id": "coset-verdict-canned",
+    "kind": "browser",
+    "marker": "coset-verdict",
+    "why": "the coset test forced down its ADDITIVE COSET branch, so the partition is reported as intact for a rebuild that no longer has one",
+    "file": "src/ui/tablePane.ts",
+    "from": "    if (view.space === null) {",
+    "to": "    if (view.space === null && view.index < 0) {",
+    "command": "npx playwright test --project=verdicts --grep \"coset-verdict reports NO COSET\"",
+    "names": "coset-verdict must report NO COSET for at least one coset of a broken rebuild"
+  },
+  {
+    "id": "space-tally-threshold",
+    "kind": "browser",
+    "marker": "space-tally",
+    "why": "the partition threshold widened past the AES control, which is the one comparison that gives the headline its meaning",
+    "file": "src/ui/tablePane.ts",
+    "from": "      (distinct <= 2",
+    "to": "      (distinct <= 20",
+    "command": "npx playwright test --project=verdicts --grep \"space-tally calls seventeen\"",
+    "names": "space-tally must deny a partition at seventeen spaces"
+  },
+  {
+    "id": "constraint-msg-silenced",
+    "kind": "browser",
+    "marker": "constraint-msg",
+    "why": "the precondition report silenced, so a generator running on constants that break its own preconditions says nothing about it",
+    "file": "src/ui/tablePane.ts",
+    "from": "    constraintMsg.textContent = problems.length",
+    "to": "    constraintMsg.textContent = 0",
+    "command": "npx playwright test --project=verdicts --grep \"constraint-msg names the precondition\"",
+    "names": "constraint-msg must name the precondition that broke"
+  },
+  {
+    "id": "scale-compare-branch",
+    "kind": "browser",
+    "marker": "scale-compare",
+    "why": "the counting argument pinned to \"still likelier\", which is the reading that makes the whole exhibit say nothing",
+    "file": "src/ui/claimPane.ts",
+    "from": "        shortfall > 0.5",
+    "to": "        shortfall > -1e9",
+    "command": "npx playwright test --project=verdicts --grep \"scale-compare flips\"",
+    "names": "scale-compare must flip to rarer once the run outruns the coincidence"
+  },
+  {
+    "id": "verdict-retirement",
+    "kind": "browser",
+    "marker": "standing-verdict",
+    "why": "a broken constant must retire the green verdict, not leave a stale one on screen",
+    "file": "src/ui/tablePane.ts",
+    "from": "      onDiffed(diffTables(generated, PI).distance);\n    }",
+    "to": "      onDiffed(0);\n    }",
+    "command": "npx playwright test --project=claims --grep \"retires the standing verdict\"",
+    "names": "a broken constant must retire the standing verdict"
+  },
+  {
+    "id": "negative-claim",
+    "kind": "browser",
+    "marker": null,
+    "why": "section 4.1d -- the limitation must be on screen in the all-green fixture state",
+    "file": "src/ui/claimPane.ts",
+    "from": "It is not an attack, and it does not become one by being exact. ",
+    "to": "It is an attack. ",
+    "command": "npx playwright test --project=claims --grep \"4.1d\"",
+    "names": "It is not an attack"
+  },
+  {
+    "id": "scroller-keyboard-route",
+    "kind": "browser",
+    "marker": null,
+    "why": "WCAG 2.1.1 -- four lookup tables scroll, and axe alone does not catch a missing route",
+    "file": "src/ui/dom.ts",
+    "from": "return el('div', { class: 'scroll-x', tabindex: '0', role: 'group', 'aria-label': label }, [child]);",
+    "to": "return el('div', { class: 'scroll-x', role: 'group', 'aria-label': label }, [child]);",
+    "command": "npx playwright test --project=a11y --grep 380",
+    "names": "scroll-x"
+  },
+  {
+    "id": "mobile-hero-basis",
+    "kind": "browser",
+    "marker": null,
+    "why": "the flex-basis that leaked into the cross axis and left 190px of dead space on a phone",
+    "file": "src/styles.css",
+    "from": "  .cl-hero-main { flex: 0 1 auto; width: 100%; min-width: 0; }",
+    "to": "  .cl-hero-main { width: 100%; min-width: 0; }",
+    "command": "npx playwright test --project=flows-chromium --grep \"dead space\"",
+    "names": "hero dead space at 380px"
+  }
+]

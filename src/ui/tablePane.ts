@@ -147,7 +147,9 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
   const right = buildGrid('Rebuilt from the four constants', () => '··');
   const diffVerdict = verdict('diff-verdict');
   const reuseVerdict = verdict('reuse-verdict');
-  const missList = el('p', { class: 'note', id: 'miss-list' });
+  // Marked: this line is a rendered outcome, not commentary -- it either names
+  // the inputs that disagree or reports that none do, and both are verdicts.
+  const missList = el('p', { class: 'note', id: 'miss-list', 'data-verdict': 'miss-list' });
 
   diffVerdict.set('idle', '·', ['Not generated yet. The right-hand grid is empty.']);
   reuseVerdict.set('idle', '·', ['Not generated yet.']);
@@ -292,7 +294,9 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
   const outGrid = buildGrid('Output space — where it lands', (i) => hex2(i));
   const cosetVerdict = verdict('coset-verdict');
   const cosetDetail = el('div', { class: 'stack-gap', id: 'coset-detail' });
-  const tally = el('p', { class: 'note', id: 'space-tally' });
+  // Marked: the distinct-space count IS the headline finding of this pane --
+  // two spaces is a partition, seventeen is not -- so it is a verdict.
+  const tally = el('p', { class: 'note', id: 'space-tally', 'data-verdict': 'space-tally' });
 
   function currentBox(): { key: BoxKey; table: number[]; field: LogTables; name: string } {
     const key = boxSelect.value as BoxKey;
@@ -434,7 +438,15 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
     (v, idx) => el('input', { type: 'text', id: `in-lam-${idx}`, value: hex2(v), size: '4' }) as HTMLInputElement,
   );
   const csttInput = el('input', { type: 'text', id: 'in-cstt', value: hex2(PI_PARAMS.cstt), size: '4' }) as HTMLInputElement;
-  const constraintMsg = el('p', { class: 'field-msg', id: 'constraint-msg', role: 'status', 'aria-live': 'polite' });
+  // Marked: it reports whether the visitor's constants still satisfy the
+  // generator's preconditions. Empty is the pass state, which is still a state.
+  const constraintMsg = el('p', {
+    class: 'field-msg',
+    id: 'constraint-msg',
+    'data-verdict': 'constraint-msg',
+    role: 'status',
+    'aria-live': 'polite',
+  });
 
   function readParams(): void {
     const s = parseSList(sInput.value) ?? [];
