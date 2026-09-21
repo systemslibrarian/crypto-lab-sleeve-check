@@ -4,3 +4,18 @@ dist
 *.local
 playwright-report
 test-results
+
+# The master template is a WORKING COPY, never a committed one. A tracked copy
+# freezes on the day it lands and silently becomes a second, wrong standard the
+# moment the catalog's audits/_MASTER-TEMPLATE.md is revised -- with nothing
+# anywhere that would notice. One was deleted from the catalog root on
+# 2026-08-20 still carrying no dependency automation and three outdated action
+# pins. Keep the file on disk for whoever is building here; keep it out of git.
+CRYPTO-LAB-TEMPLATE.md
+_MASTER-TEMPLATE.md
+template.md
+
+# Session transcripts and scratch notes. chat.md is a build-session artefact,
+# not part of the lab; untracked and unignored it is one `git add -A` away from
+# being committed.
+chat.md
