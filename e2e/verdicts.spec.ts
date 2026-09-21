@@ -61,7 +61,12 @@ interface Offence {
   text: string;
 }
 
-/** Everything on the page that looks like a verdict but sits outside a marker. */
+/**
+ * Everything on the page that looks like a verdict but sits outside a marker.
+ * Scoped to #app -- the hero, the panes and the footer -- rather than to the
+ * panes alone, so a banner added anywhere the lab owns is caught. The shared
+ * crypto-lab topbar above #app is not this lab's copy and is excluded.
+ */
 async function offencesOutsideMarkers(page: Page): Promise<Offence[]> {
   return page.evaluate(
     ([wordSource, styleSelector]) => {
@@ -80,18 +85,25 @@ async function offencesOutsideMarkers(page: Page): Promise<Offence[]> {
         }
         return false;
       };
-      const roots = Array.from(document.querySelectorAll('.pane:not([hidden])'));
-      for (const root of roots) {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-          const text = n.textContent ?? '';
-          if (!words.test(text) || marked(n)) continue;
-          out.push({ kind: 'wording', where: path(n.parentElement!), text: text.trim().slice(0, 120) });
-        }
-        for (const el of Array.from(root.querySelectorAll(styleSelector))) {
-          if (marked(el)) continue;
-          out.push({ kind: 'styling', where: path(el), text: (el.textContent ?? '').trim().slice(0, 120) });
-        }
+      // The whole of #app, not just the three exhibit panes: the hero and the
+      // footer are as good a place to bolt a banner onto as a pane is, and the
+      // first version of this check could not see either. A [hidden] subtree is
+      // skipped because a locked pane paints nothing, and <script>/<style> text
+      // is skipped because it is source, not rendered copy.
+      const root = document.getElementById('app');
+      if (!root) return out;
+      const live = (el: Element | null): boolean => !!el && !el.closest('[hidden]');
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const parent = n.parentElement;
+        if (!live(parent) || parent!.tagName === 'SCRIPT' || parent!.tagName === 'STYLE') continue;
+        const text = n.textContent ?? '';
+        if (!words.test(text) || marked(n)) continue;
+        out.push({ kind: 'wording', where: path(parent!), text: text.trim().slice(0, 120) });
+      }
+      for (const el of Array.from(root.querySelectorAll(styleSelector))) {
+        if (!live(el) || marked(el)) continue;
+        out.push({ kind: 'styling', where: path(el), text: (el.textContent ?? '').trim().slice(0, 120) });
       }
       return out;
     },

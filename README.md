@@ -244,8 +244,8 @@ when the ledger names a marker the page has stopped rendering.
 
 A second check fails on verdict **wording** (`PASS`, `MISMATCH`, `NO COSET` and
 the rest, upper case and whole-word) or verdict **styling** (`.verdict`,
-`.is-pass`, `.is-fail`, `[data-tone]`) rendered anywhere outside a marked
-subtree. That is what stops the easy way around the first check: bolting a raw
+`.is-pass`, `.is-fail`, `[data-tone]`) rendered anywhere in `#app` — hero,
+panes and footer, not just the exhibit panes — outside a marked subtree. That is what stops the easy way around the first check: bolting a raw
 banner onto the page and simply not marking it. Both detectors are themselves
 watched failing — two tests inject the exact defect, an unmarked banner and a
 marker absent from the ledger, and require each detector to report it.
