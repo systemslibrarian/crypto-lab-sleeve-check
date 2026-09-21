@@ -3,13 +3,20 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * E2E runs against the production build served by `vite preview`, so what passes
  * here is what ships. Two projects:
- *   - a11y.spec.ts   — the axe WCAG 2.1 A/AA gate (Chromium only, deterministic).
- *   - claims.spec.ts — §4.1b cross-checks and independent re-derivations,
- *                      §4.1c mutation targets, §4.1d negative-claim scope tests.
+ *   - a11y.spec.ts     — the axe WCAG 2.1 A/AA gate (Chromium only, deterministic).
+ *   - claims.spec.ts   — §4.1b cross-checks and independent re-derivations,
+ *                        §4.1c mutation targets, §4.1d negative-claim scope tests.
+ *   - verdicts.spec.ts — verdict coverage derived by walking the rendered page
+ *                        for `data-verdict` markers, plus the §4.1c owning test
+ *                        for each one.
  *
- * Port 4660 is unique to this lab across the fleet (never the Vite default 4173).
- * Checked against every sibling lab's playwright config before it was chosen;
- * the 4600-4699 range was otherwise near-saturated.
+ * Port 4206 is this lab's, pinned in crypto-lab/tools/playwright-ports.json and
+ * enforced by `node tools/port-sync.js check`. It appears THREE times below --
+ * baseURL, webServer.url, and the --port the preview server actually binds --
+ * and all three have to agree. They did not: 595d51b moved the first two to 4206
+ * and left the bind on 4660, so every Playwright run timed out waiting for a
+ * server that was listening on another port. port-sync could not see it: it
+ * reads the FIRST port-shaped number in this file, which is the baseURL.
  */
 export default defineConfig({
   testDir: './e2e',
@@ -35,6 +42,16 @@ export default defineConfig({
       testMatch: /claims\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
     },
+    // Verdict coverage, taken from the rendered page rather than from anyone's
+    // list of what the page shows. Its own project so CI can name it as a
+    // distinct step and so `npm run test:verdicts` is one command; it is still
+    // inside the single `build` gate that `deploy` needs, so it cannot drift
+    // away from what ships.
+    {
+      name: 'verdicts',
+      testMatch: /verdicts\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
+    },
     // The critical-path journey, in every engine. Zero axe violations and zero
     // horizontal overflow are necessary and NOT sufficient for visual quality:
     // the 190px of dead space this lab shipped under its mobile hero passed
@@ -48,7 +65,7 @@ export default defineConfig({
     // Build before serving: `vite preview` only serves whatever is already in
     // dist/, so without this a failing build leaves the previous good bundle in
     // place and the suite passes green against source that no longer compiles.
-    command: 'npm run build && npm run preview -- --port 4660 --strictPort',
+    command: 'npm run build && npm run preview -- --port 4206 --strictPort',
     url: 'http://localhost:4206/crypto-lab-sleeve-check/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
