@@ -170,6 +170,8 @@ npm run check:links    # re-check that every cited source still resolves
 
 **160 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
+It is a step in the CI gate as well as in `npm run verify`, so the sentence cannot go stale on
+`main` with nothing red.
 
 Known-answer tests and their fixture files:
 

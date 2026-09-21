@@ -51,6 +51,18 @@ jobs:
         run: npm test
       - name: Build (typecheck gates the build)
         run: npm run build
+      # The README's "160 tests ... 91 Vitest + 31 claims + 36 cross-browser
+      # flow runs + 2 axe gates" sentence is a claim like any other, and it was
+      # the only claim in this lab that nothing in CI checked -- it held solely
+      # because a human remembered to run `npm run verify` before pushing. That
+      # is this fleet's signature failure shape: a statement that can go wrong
+      # on main with nothing turning red.
+      #
+      # It costs 1.2s and needs no browser binaries -- it only *lists* the
+      # suites -- so it runs before the install rather than after it. Verified
+      # against an empty PLAYWRIGHT_BROWSERS_PATH, not assumed.
+      - name: README test counts match the runners
+        run: npm run check:counts
       - name: Install Playwright browsers
         # All three engines: the axe gate is Chromium-only by design, but the
         # critical-path flows run in Firefox and WebKit too, and an engine that

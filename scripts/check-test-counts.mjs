@@ -7,9 +7,17 @@
  * document quietly starts overstating what runs. This asks the runners how many
  * tests they actually have and compares.
  *
- * It is wired into `npm run verify`, not into the CI gate. A drifted count is a
- * documentation defect, not a reason to block a deploy of correct code -- and
- * running two test listers is slow enough that it does not belong in the gate.
+ * It is wired into `npm run verify` AND into the CI gate, as a step in the one
+ * `build` job of deploy.yml.
+ *
+ * It used to be local-only, on the argument that a drifted count is a
+ * documentation defect rather than a reason to block a deploy of correct code,
+ * and that two test listers are too slow for a gate. The second half was simply
+ * wrong: listing executes nothing and needs no browser binaries, and the whole
+ * check is 1.2s. The first half was the more expensive mistake -- it left the
+ * README's count sentence as the one claim in this lab protected only by a
+ * human remembering to run `verify`, which is precisely the drift the rest of
+ * this repo exists to make impossible.
  */
 
 import { execSync } from 'node:child_process';
