@@ -19,7 +19,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'list' : [['list'], ['html', { open: 'never' }]],
   use: {
-    baseURL: 'http://localhost:4660/crypto-lab-sleeve-check/',
+    baseURL: 'http://localhost:4206/crypto-lab-sleeve-check/',
   },
   projects: [
     {
@@ -49,7 +49,7 @@ export default defineConfig({
     // dist/, so without this a failing build leaves the previous good bundle in
     // place and the suite passes green against source that no longer compiles.
     command: 'npm run build && npm run preview -- --port 4660 --strictPort',
-    url: 'http://localhost:4660/crypto-lab-sleeve-check/',
+    url: 'http://localhost:4206/crypto-lab-sleeve-check/',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
