@@ -275,23 +275,44 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
     const lotteryExp = LOG2_LOTTERY * runs;
     const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = lottery is still likelier
     clear(readout);
+    // The three rendered MEASUREMENTS of the counting argument.
+    //
+    // `data-claim` is the measurement counterpart of `data-verdict`, and it is
+    // in the same coverage loop on the same terms: a number rendered in a
+    // result region with no mutation record in `scripts/mutation-ledger.json`
+    // fails the build, and a record naming a claim the page has stopped
+    // rendering fails too. A rendered number is as much a claim as a rendered
+    // word, and it is the easier one to ship unchecked, because a number does
+    // not look like a claim.
+    //
+    // `data-value` is the machine-readable half of the same claim. Asserting
+    // both is what stops a mutation pinning one while the sentence beside it
+    // keeps moving.
     readout.appendChild(
-      el('div', {}, [
+      el('div', { 'data-claim': 'lottery-runs', 'data-value': String(runs) }, [
         el('span', { class: 'k', text: 'French lottery, won this many times running' }),
         `${runs}`,
       ]),
     );
     readout.appendChild(
-      el('div', {}, [
+      el('div', { 'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1) }, [
         el('span', { class: 'k', text: 'probability of that run' }),
         `2^${lotteryExp.toFixed(1)}`,
       ]),
     );
     readout.appendChild(
-      el('div', { id: 'tklog-probability' }, [
-        el('span', { class: 'k', text: 'probability a random 8-bit permutation is a TKlog' }),
-        `2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}`,
-      ]),
+      el(
+        'div',
+        {
+          id: 'tklog-probability',
+          'data-claim': 'tklog-probability',
+          'data-value': LOG2_TKLOG_PROBABILITY.toFixed(1),
+        },
+        [
+          el('span', { class: 'k', text: 'probability a random 8-bit permutation is a TKlog' }),
+          `2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}`,
+        ],
+      ),
     );
     readout.appendChild(
       // Marked: this line is the comparison the whole counting argument turns

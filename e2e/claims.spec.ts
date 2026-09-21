@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { expectVerdict } from './verdict-assert';
 
 /**
  * The claims suite (template 4.1b / 4.1c / 4.1d).
@@ -513,8 +514,15 @@ test('source links open safely and are not identified by colour alone', async ({
 test('editing a constant retires the standing verdict, and the page says so', async ({ page }) => {
   await reachTableDiffed(page);
   await page.getByRole('tab', { name: /The Claim/ }).click();
-  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'pass');
-  await expect(page.locator('#standing-verdict')).toContainText('STRUCTURE RECOVERED');
+  // Through the shared helper, which asserts the words, the tone, the class and
+  // the tick as one claim -- a mutation that flips the sentence and leaves the
+  // green tick standing is not a kill. `e2e/verdicts.spec.ts` fails the build
+  // if this test stops going through it.
+  await expectVerdict(page, 'standing-verdict', {
+    text: 'STRUCTURE RECOVERED',
+    state: 'pass',
+    because: 'the standing verdict must report the state of the checks in panes 1 and 2',
+  });
 
   await page.getByRole('tab', { name: /The Table/ }).click();
   await page.locator('#break-one-bit').click();
@@ -523,13 +531,12 @@ test('editing a constant retires the standing verdict, and the page says so', as
 
   // The stale verdict is gone, the page says it was withdrawn, and it reports
   // the same distance pane 2 is showing -- a cross-check between two surfaces.
-  await expect(
-    page.locator('#standing-verdict'),
-    'a broken constant must retire the standing verdict',
-  ).toHaveAttribute('data-tone', 'fail');
+  await expectVerdict(page, 'standing-verdict', {
+    text: ['RETIRED', 'withdrawn'],
+    state: 'fail',
+    because: 'a broken constant must retire the standing verdict',
+  });
   await expect(page.locator('#standing-verdict')).not.toContainText('STRUCTURE RECOVERED');
-  await expect(page.locator('#standing-verdict')).toContainText('RETIRED');
-  await expect(page.locator('#standing-verdict')).toContainText('withdrawn');
 
   const summary = (await page.locator('#standing-verdict').textContent()) ?? '';
   const fromPane3 = Number(/differs from the published table in (\d+) of 256/.exec(summary)?.[1]);
@@ -543,8 +550,11 @@ test('editing a constant retires the standing verdict, and the page says so', as
   // And it comes back when the constants do.
   await page.locator('#reset-constants').click();
   await page.getByRole('tab', { name: /The Claim/ }).click();
-  await expect(page.locator('#standing-verdict')).toHaveAttribute('data-tone', 'pass');
-  await expect(page.locator('#standing-verdict')).toContainText('STRUCTURE RECOVERED');
+  await expectVerdict(page, 'standing-verdict', {
+    text: 'STRUCTURE RECOVERED',
+    state: 'pass',
+    because: 'the standing verdict must come back when the constants do',
+  });
 });
 
 test('a retired summary does not retire the sourced record below it', async ({ page }) => {

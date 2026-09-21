@@ -168,7 +168,7 @@ npm run check:links    # re-check that every cited source still resolves
 
 ## Build & Verify
 
-**173 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 13 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
+**177 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 17 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 It is a step in the CI gate as well as in `npm run verify`, so the sentence cannot go stale on
 `main` with nothing red.
@@ -234,21 +234,58 @@ the DOM:
 | `standing-verdict` | the pane 3 summary of panes 1 and 2 | `verdict-retirement` |
 | `scale-compare` | whether the lottery run has got rarer than the coincidence | `scale-compare-branch` |
 
-**Coverage is derived by walking the rendered page, not from that table.**
-`e2e/verdicts.spec.ts` drives every state the lab renders a verdict in — both
-lock cards, the passing KAT, the empty and the filled grid, the AES control, the
-failure states a broken constant reaches, and both readings of the probability
-scale — collects every `data-verdict` it finds, and fails if any of them has no
-mutation in `scripts/mutation-ledger.json`. It fails in the other direction too,
-when the ledger names a marker the page has stopped rendering.
+A rendered **number** is a claim on exactly the same terms, and it is the easier
+one to ship unchecked, because a number does not look like a claim. The three
+the counting argument turns on carry `data-claim` markers, are in the same
+coverage loop, and each has a mutation of its own:
+
+| marker | what it measures | mutation that proves it can lie |
+|---|---|---|
+| `lottery-runs` | the position the scale is at | `lottery-runs-pinned` |
+| `lottery-probability` | that many consecutive wins, as a power of two | `lottery-probability-pinned` |
+| `tklog-probability` | the ratio of the two counts the page prints | `tklog-probability-pinned` |
+
+Each of those carries a `data-value` beside the sentence it renders, and the
+owning test asserts both. A mutation that pins one while the other keeps moving
+is the measurement version of a canned verdict.
+
+**Coverage is derived by walking the rendered page, not from those tables.**
+`driveEveryState` in `e2e/verdicts.spec.ts` is the DENOMINATOR both coverage
+rules enumerate over, so it visits **every option of every control that changes
+what renders, each control on its own** — both lock cards, all nine round keys,
+the four stages of a stepped round, the passing KAT, the empty and the filled
+grid, all three boxes, all seventeen cosets, all three ways the constants can
+break a precondition, and all eighty positions of the probability scale. Option
+counts are read from the controls, not written down here, so a select that grows
+an option grows the walk with it. Anything renderable only at a value the walk
+skips would sit outside the set the rules judge, which is the same
+discovered-rather-than-declared defect one level up.
+
+Over that walk, the first check collects every `data-verdict` and `data-claim`
+it finds and fails if any of them has no mutation in
+`scripts/mutation-ledger.json`. It fails in the other direction too, when the
+ledger names a marker the page has stopped rendering. And it fails if a mutation
+record's owning test does not assert its marker through `expectVerdict` /
+`expectClaim` in `e2e/verdict-assert.ts` — the helper that checks a marker's
+text, its `data-tone`, its pass/fail class and its mark glyph in one call. A
+text-only kill is not evidence: the tone, the class and the tick all survive it,
+so the marker goes on reporting success in every channel a reader can see except
+the sentence.
 
 A second check fails on verdict **wording** (`PASS`, `MISMATCH`, `NO COSET` and
-the rest, upper case and whole-word) or verdict **styling** (`.verdict`,
-`.is-pass`, `.is-fail`, `[data-tone]`) rendered anywhere in `#app` — hero,
-panes and footer, not just the exhibit panes — outside a marked subtree. That is what stops the easy way around the first check: bolting a raw
-banner onto the page and simply not marking it. Both detectors are themselves
-watched failing — two tests inject the exact defect, an unmarked banner and a
-marker absent from the ledger, and require each detector to report it.
+the rest, upper case and whole-word), verdict **styling** (`.verdict`,
+`.is-pass`, `.is-fail`, `[data-tone]`) or a rendered **measurement** (a
+digit-plus-unit, or a bare number in the stats grid) outside a marked subtree.
+The first two are scanned across `#app` — hero, panes and footer, not just the
+exhibit panes. The third is scanned in result regions only: the page's own
+`role="status"` / `aria-live` regions plus the stats grid, the coset detail and
+the step caption. Static prose is deliberately out of scope, because "a 16-byte
+block" in an explanatory paragraph is not a claim the run produces. Together
+they stop the easy way around the first check: bolting a raw banner, or a raw
+number, onto the page and simply not marking it. All three detectors are
+themselves watched failing — three tests inject the exact defect, an unmarked
+banner, an unmarked number and a marker absent from the ledger, and require each
+detector to report it.
 
 The ledger is data, in `scripts/mutation-ledger.json`, precisely so the runner
 and the coverage check read the same list. Two copies of a list is how a verdict
