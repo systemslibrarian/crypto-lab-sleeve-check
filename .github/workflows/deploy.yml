@@ -150,8 +150,12 @@ jobs:
       - id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
 
-  # Dependabot only. `needs: build` is the whole safety argument -- the gate
-  # decides, not the version number.
+  # Dependabot only. The `needs:` list is the whole safety argument -- the gate
+  # decides, not the version number -- and it has to name EVERY judging job, not
+  # just `build`. This job runs as a job, not as a merge through the GitHub UI,
+  # so `needs:` is what actually blocks it: it cannot start until both `build`
+  # and `verdict-coverage` are green, whether or not branch protection agrees.
+  # Branch protection is the other half, for the paths that are not this job.
   dependabot-auto-merge:
     needs: [build, verdict-coverage]
     if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
