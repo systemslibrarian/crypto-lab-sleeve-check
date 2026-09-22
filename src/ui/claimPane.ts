@@ -18,6 +18,14 @@ import { SOURCES, SOURCE_IDS } from './sources';
 export const LOG2_TKLOG_INSTANCES = 82.6;
 export const LOG2_PERMUTATIONS = 1684;
 export const LOG2_TKLOG_PROBABILITY = LOG2_TKLOG_INSTANCES - LOG2_PERMUTATIONS; // about -1601
+/**
+ * Perrin's FAQ, §2.1.3 and its footnote 5: Loto is won by picking 5 different
+ * numbers in {1,...,49} and one in {1,...,10}, an event of probability
+ * (49 choose 5 × 10)^-1, about 2^-24.2. Both the figure and the rule that
+ * produces it are his, and `e2e/verdicts.spec.ts` checks the figure against
+ * that rule -- so this is a cited constant, not a literal that would agree with
+ * whatever the page happened to print.
+ */
 export const LOG2_LOTTERY = -24.2;
 export const LOTTERY_RUNS = 66;
 
@@ -272,37 +280,89 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
 
   function drawScale(): void {
     const runs = Number(slider.value);
+    // One literal scaled by the run count, and the readout says only that.
+    //
+    // What can be shown here: this number tracks the one-win figure the page
+    // prints in its own details list, and the run count the readout renders
+    // beside it. `e2e/verdicts.spec.ts` reads both off the page and derives the
+    // expected value from them.
+    //
+    // What CANNOT be shown here, so what the copy must not claim: composing
+    // `runs` independent wins and scaling one figure by `runs` are the same
+    // arithmetic in the exponent, so no test written against this page can
+    // separate them. The row therefore reads `that run, on the same scale` and
+    // leaves the probability reading to Perrin's framing in the `p.note`
+    // BELOW this readout, where it is attributed to him by name. (An earlier
+    // version of this comment said `the prose above`, which was wrong: what
+    // sits above is the card's own lede, and the fix was to attribute the
+    // lottery comparison there too rather than to keep pointing at the wrong
+    // paragraph.) `tklog-probability`, the row directly below, may say
+    // probability: it is the ratio of two separately printed, separately
+    // cited counts, and moving either one moves it.
+    //
+    // The one-win figure itself is no longer in that category. It is Perrin's,
+    // it is cited where LOG2_LOTTERY is declared and again on the page beside
+    // the number, and the spec holds it to the rule his footnote gives rather
+    // than to whatever this page prints.
     const lotteryExp = LOG2_LOTTERY * runs;
-    const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = lottery is still likelier
+    const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = the run sits above the TKlog figure
     clear(readout);
+    // The three rendered MEASUREMENTS of the counting argument.
+    //
+    // `data-claim` is the measurement counterpart of `data-verdict`, and it is
+    // in the same coverage loop on the same terms: a number rendered in a
+    // result region with no mutation record in `scripts/mutation-ledger.json`
+    // fails the build, and a record naming a claim the page has stopped
+    // rendering fails too. A rendered number is as much a claim as a rendered
+    // word, and it is the easier one to ship unchecked, because a number does
+    // not look like a claim.
+    //
+    // `data-value` is the machine-readable half of the same claim. Asserting
+    // both is what stops a mutation pinning one while the sentence beside it
+    // keeps moving.
     readout.appendChild(
-      el('div', {}, [
+      el('div', { 'data-claim': 'lottery-runs', 'data-value': String(runs) }, [
         el('span', { class: 'k', text: 'French lottery, won this many times running' }),
         `${runs}`,
       ]),
     );
     readout.appendChild(
-      el('div', {}, [
-        el('span', { class: 'k', text: 'probability of that run' }),
+      el('div', { 'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1) }, [
+        el('span', { class: 'k', text: 'that run, on the same scale' }),
         `2^${lotteryExp.toFixed(1)}`,
       ]),
     );
     readout.appendChild(
-      el('div', { id: 'tklog-probability' }, [
-        el('span', { class: 'k', text: 'probability a random 8-bit permutation is a TKlog' }),
-        `2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}`,
-      ]),
+      el(
+        'div',
+        {
+          id: 'tklog-probability',
+          'data-claim': 'tklog-probability',
+          'data-value': LOG2_TKLOG_PROBABILITY.toFixed(1),
+        },
+        [
+          el('span', { class: 'k', text: 'probability a random 8-bit permutation is a TKlog' }),
+          `2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}`,
+        ],
+      ),
     );
     readout.appendChild(
       // Marked: this line is the comparison the whole counting argument turns
       // on, and it flips between two opposite readings as the slider moves.
+      // Marked, and therefore held to the same rule as the row above it: a
+      // verdict the gate judges must not assert in the page's own voice what
+      // the page cannot show. This line used to read `likelier` and `rarer`,
+      // which are probability words -- and one side of the comparison is a
+      // cited figure scaled by a run count, not a measured probability. It
+      // compares the two exponents, which is exactly what it can demonstrate,
+      // and the probability reading stays with Perrin, attributed, below.
       el('div', { id: 'scale-compare', 'data-verdict': 'scale-compare' }, [
         el('span', { class: 'k', text: 'which is' }),
         shortfall > 0.5
-          ? `still 2^${shortfall.toFixed(1)} times likelier than the TKlog coincidence`
+          ? `still 2^${shortfall.toFixed(1)} above the TKlog figure on this scale`
           : shortfall < -0.5
-            ? `already 2^${(-shortfall).toFixed(1)} times rarer than the TKlog coincidence`
-            : 'about the same as the TKlog coincidence',
+            ? `already 2^${(-shortfall).toFixed(1)} below the TKlog figure on this scale`
+            : 'level with the TKlog figure on this scale',
       ]),
     );
   }
@@ -315,12 +375,15 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
       el('p', { class: 'lede' }, [
         'There are roughly 2^82.6 TKlog instances on 8 bits, against 256! ≈ 2^1684 permutations of ' +
           'a byte. So a permutation drawn at random is a TKlog with probability about 2^−1601. ' +
-          'Move the scale until a run of lottery wins gets that rare. ',
+          'The comparison with a run of lottery wins is Perrin’s; move the scale until one reaches ' +
+          'that figure. ',
         el('span', { class: 'src' }, [
-          'Both counts are Perrin’s: ',
+          'Both counts are Perrin’s, and so is the lottery comparison: ',
           cite('tosc2019'),
           ' (preprint: ',
           cite('eprint2019092'),
+          '; the lottery framing is ',
+          cite('faq', 'his FAQ, §2.1.3'),
           ').',
         ]),
       ]),
@@ -339,7 +402,12 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
           el('li', { text: `TKlog instances on 8 bits: about 2^${LOG2_TKLOG_INSTANCES} (Perrin, ToSC 2019(1))` }),
           el('li', { text: `permutations of a byte: 256! ≈ 2^${LOG2_PERMUTATIONS}` }),
           el('li', { text: `their ratio: 2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}` }),
-          el('li', { text: `French lottery, one win: about 2^${LOG2_LOTTERY}` }),
+          el('li', {}, [
+            `French lottery, one win: 5 of 49 and one of 10, so (49 choose 5 × 10)^-1, ` +
+              `about 2^${LOG2_LOTTERY} (`,
+            cite('faq', 'Perrin\u2019s FAQ, \u00A72.1.3 n.5'),
+            ')',
+          ]),
         ]),
       ]),
     ]),
