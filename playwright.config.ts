@@ -2,13 +2,17 @@ import { defineConfig, devices } from '@playwright/test';
 
 /**
  * E2E runs against the production build served by `vite preview`, so what passes
- * here is what ships. Two projects:
+ * here is what ships. Four projects:
  *   - a11y.spec.ts     — the axe WCAG 2.1 A/AA gate (Chromium only, deterministic).
  *   - claims.spec.ts   — §4.1b cross-checks and independent re-derivations,
  *                        §4.1c mutation targets, §4.1d negative-claim scope tests.
  *   - verdicts.spec.ts — verdict coverage derived by walking the rendered page
  *                        for `data-verdict` markers, plus the §4.1c owning test
  *                        for each one.
+ *   - coverage.spec.ts — whether those owning tests actually RAN, judged from
+ *                        what the helpers recorded while they ran. It depends on
+ *                        the two projects above, which is what makes "after
+ *                        every test" an ordering guarantee rather than a hope.
  *
  * Port 4206 is this lab's, pinned in crypto-lab/tools/playwright-ports.json and
  * enforced by `node tools/port-sync.js check`. It appears THREE times below --
@@ -20,6 +24,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './e2e',
+  // Empties test-results/marker-observations/ before anything runs, so the
+  // coverage audit cannot be satisfied by an earlier run's evidence.
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   timeout: 90_000, // the axe driver walks every pane + disclosure before scanning
   forbidOnly: !!process.env.CI,
@@ -50,6 +57,21 @@ export default defineConfig({
     {
       name: 'verdicts',
       testMatch: /verdicts\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
+    },
+    // Whether the assertions the mutation ledger rests on actually RAN.
+    //
+    // `dependencies` is the whole point of it being a project: Playwright runs
+    // `claims` and `verdicts` to completion before this one, and pulls both in
+    // even when this project is named on its own -- so the check judges the
+    // full set the ledger names rather than whatever happened to be selected.
+    // `npm run test:verdicts` names THIS project for that reason; naming
+    // `verdicts` there would have left `standing-verdict`'s kill, which lives
+    // in the claims project, outside the check that CI can require.
+    {
+      name: 'coverage',
+      testMatch: /coverage\.spec\.ts/,
+      dependencies: ['claims', 'verdicts'],
       use: { ...devices['Desktop Chrome'], colorScheme: 'dark' },
     },
     // The critical-path journey, in every engine. Zero axe violations and zero

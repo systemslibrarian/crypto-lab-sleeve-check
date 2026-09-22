@@ -56,7 +56,12 @@ const vitest = vitestCount();
 const pw = playwrightCounts();
 const a11y = pw.get('a11y') ?? 0;
 const claims = pw.get('claims') ?? 0;
-const verdicts = pw.get('verdicts') ?? 0;
+// `verdicts` walks the rendered page for markers; `coverage` judges whether the
+// tests the mutation ledger names actually ran. They are one bucket in the
+// README sentence because they are one rule in two halves -- what the page
+// shows, and what was really checked about it -- and splitting them there would
+// invite the two to be counted as separate promises.
+const verdicts = (pw.get('verdicts') ?? 0) + (pw.get('coverage') ?? 0);
 const flows = [...pw].filter(([name]) => name.startsWith('flows-')).reduce((n, [, c]) => n + c, 0);
 const total = vitest + a11y + claims + verdicts + flows;
 

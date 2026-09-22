@@ -1,5 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
-import { expectVerdict } from './verdict-assert';
+import { type Page } from '@playwright/test';
+import { expect, test } from './observe';
+import { expectClaim, expectVerdict } from './verdict-assert';
 
 /**
  * The claims suite (template 4.1b / 4.1c / 4.1d).
@@ -55,7 +56,14 @@ test('the stated Hamming distance equals the number of cells the page painted re
     ['s collapsed', async () => page.locator('#in-s').fill('1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1')],
   ] as const) {
     await action();
-    const text = (await page.locator('#diff-verdict').textContent()) ?? '';
+    // The distance this test cross-checks is read by the helper that asserts
+    // the marker, not by a locator beside it: a number taken off a marker with
+    // nothing asserting it is a number the marker can be wrong about.
+    const { text } = await expectVerdict(page, 'diff-verdict', {
+      text: /Hamming distance \d+ of 256/,
+      state: ['pass', 'fail'],
+      because: 'diff-verdict must state a Hamming distance in every state it renders',
+    });
     const stated = Number(/Hamming distance (\d+) of 256/.exec(text)?.[1]);
     const painted = await page.locator('#pane-table td.miss').count();
     expect(stated, `stated vs painted mismatch count (${label})`).toBe(painted);
@@ -68,7 +76,12 @@ test('the mismatch list names exactly the inputs whose rebuilt byte differs', as
   await page.locator('#break-one-bit').click();
   await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'fail');
 
-  const listed = ((await page.locator('#miss-list').textContent()) ?? '')
+  const { text: missText } = await expectVerdict(page, 'miss-list', {
+    text: /Mismatching inputs \(\d+\)/,
+    state: 'none',
+    because: 'the mismatch list must name inputs once the rebuild stops matching',
+  });
+  const listed = missText
     .replace(/^[^:]*:/, '')
     .split(',')
     .map((s) => s.trim().replace(/\.$/, ''))
@@ -147,9 +160,12 @@ test('the space tally counts the distinct spaces the page itself printed', async
       await page.locator('#coset-select').selectOption(String(i));
       spaces.add((await chipValues(page, '#coset-detail div:nth-of-type(3) ul')).join(','));
     }
-    const stated = Number(
-      /uses (\d+) distinct landing space/.exec((await page.locator('#space-tally').textContent()) ?? '')?.[1],
-    );
+    const { text } = await expectVerdict(page, 'space-tally', {
+      text: /uses \d+ distinct landing space/,
+      state: 'none',
+      because: `the ${box} tally must state how many distinct landing spaces it found`,
+    });
+    const stated = Number(/uses (\d+) distinct landing space/.exec(text)?.[1]);
     expect(spaces.size, `${box}: distinct spaces actually printed`).toBe(expected);
     expect(stated, `${box}: the tally agrees with the chips`).toBe(spaces.size);
   }
@@ -360,7 +376,11 @@ test('pi(0) = cstt = FC, checked against the page rather than a comment', async 
 
 test('the cipher pane names the RFC ciphertext it compared against', async ({ page }) => {
   await reachCipherVerified(page);
-  const text = (await page.locator('#kat-encrypt').textContent()) ?? '';
+  const { text } = await expectVerdict(page, 'kat-encrypt', {
+    text: 'PASS',
+    state: 'pass',
+    because: 'the cipher pane must name the RFC ciphertext it compared against',
+  });
   const [produced, printed] = [...text.matchAll(/([0-9a-f]{32})/g)].map((m) => m[1]);
   expect(produced, 'the page must print both sides of the comparison').toBeDefined();
   expect(produced).toBe(printed);
@@ -390,9 +410,17 @@ test('the probability scale reports the ratio of the two counts it prints', asyn
   const listed = (await page.locator('#pane-claim details li').allTextContents()).join(' ');
   const instances = Number(/TKlog instances on 8 bits: about 2\^([\d.]+)/.exec(listed)?.[1]);
   const perms = Number(/permutations of a byte: 256! ≈ 2\^([\d.]+)/.exec(listed)?.[1]);
-  const shown = Number(
-    /2\^(-?[\d.]+)/.exec((await page.locator('#tklog-probability').textContent()) ?? '')?.[1],
-  );
+  // The figure compared here is the one the helper asserted, both channels of
+  // it. Reading it with a locator of its own left the comparison being made
+  // against a number nothing had checked -- a helper call in the other spec
+  // file satisfied the old coverage rule while this test did the real work
+  // through a separate locator, which is the same defect one level down.
+  const { text: shownText, value } = await expectClaim(page, 'tklog-probability', {
+    value: /^-?\d+\.\d$/,
+    because: 'the probability scale must print the figure it reports in data-value',
+  });
+  const shown = Number(/2\^(-?[\d.]+)/.exec(shownText)?.[1]);
+  expect(shown, 'the sentence and the data-value must be the same figure').toBe(Number(value));
   // Parts sum to whole: the probability IS the ratio of the two counts.
   expect(instances - perms).toBeCloseTo(shown, 1);
 });
@@ -531,19 +559,24 @@ test('editing a constant retires the standing verdict, and the page says so', as
 
   // The stale verdict is gone, the page says it was withdrawn, and it reports
   // the same distance pane 2 is showing -- a cross-check between two surfaces.
-  await expectVerdict(page, 'standing-verdict', {
+  const { text: summary } = await expectVerdict(page, 'standing-verdict', {
     text: ['RETIRED', 'withdrawn'],
     state: 'fail',
     because: 'a broken constant must retire the standing verdict',
   });
-  await expect(page.locator('#standing-verdict')).not.toContainText('STRUCTURE RECOVERED');
+  expect(summary, 'the retired summary must not still say the structure was recovered').not.toContain(
+    'STRUCTURE RECOVERED',
+  );
 
-  const summary = (await page.locator('#standing-verdict').textContent()) ?? '';
+  // Both halves of the cross-check are readings the helper made and asserted.
   const fromPane3 = Number(/differs from the published table in (\d+) of 256/.exec(summary)?.[1]);
   await page.getByRole('tab', { name: /The Table/ }).click();
-  const fromPane2 = Number(
-    /Hamming distance (\d+) of 256/.exec((await page.locator('#diff-verdict').textContent()) ?? '')?.[1],
-  );
+  const { text: pane2 } = await expectVerdict(page, 'diff-verdict', {
+    text: /Hamming distance \d+ of 256/,
+    state: 'fail',
+    because: 'pane 2 must still be reporting the distance pane 3 withdrew its verdict over',
+  });
+  const fromPane2 = Number(/Hamming distance (\d+) of 256/.exec(pane2)?.[1]);
   expect(fromPane3, 'the two panes must report the same distance').toBe(fromPane2);
   expect(fromPane3).toBeGreaterThan(0);
 

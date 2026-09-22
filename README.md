@@ -150,6 +150,8 @@ npm test               # unit + KAT suite (Vitest)
 npm run build          # typecheck, then production build
 npm run test:a11y      # axe WCAG 2.1 A/AA gate against the production build
 npm run test:claims    # the claims suite
+npm run test:verdicts  # marker coverage, and whether its assertions actually ran
+                       # (the `coverage` project, which pulls in claims + verdicts)
 npm run test:flows     # the critical path in Chromium, Firefox, WebKit, mobile
 npm run test:mutation  # re-prove that the tests bite (see below)
 npm run check:links    # re-check that every cited source still resolves
@@ -168,7 +170,7 @@ npm run check:links    # re-check that every cited source still resolves
 
 ## Build & Verify
 
-**177 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 17 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
+**186 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 26 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 It is a step in the CI gate as well as in `npm run verify`, so the sentence cannot go stale on
 `main` with nothing red.
@@ -291,13 +293,7 @@ discovered-rather-than-declared defect one level up.
 Over that walk, the first check collects every `data-verdict` and `data-claim`
 it finds and fails if any of them has no mutation in
 `scripts/mutation-ledger.json`. It fails in the other direction too, when the
-ledger names a marker the page has stopped rendering. And it fails if a mutation
-record's owning test does not assert its marker through `expectVerdict` /
-`expectClaim` in `e2e/verdict-assert.ts` — the helper that checks a marker's
-text, its `data-tone`, its pass/fail class and its mark glyph in one call. A
-text-only kill is not evidence: the tone, the class and the tick all survive it,
-so the marker goes on reporting success in every channel a reader can see except
-the sentence.
+ledger names a marker the page has stopped rendering.
 
 A second check fails on verdict **wording** (`PASS`, `MISMATCH`, `NO COSET` and
 the rest, upper case and whole-word), verdict **styling** (`.verdict`,
@@ -317,6 +313,68 @@ detector to report it.
 The ledger is data, in `scripts/mutation-ledger.json`, precisely so the runner
 and the coverage check read the same list. Two copies of a list is how a verdict
 ends up covered on paper and uncovered in fact.
+
+### Whether the assertions the ledger rests on actually ran
+
+Every marker is asserted through `expectVerdict` / `expectClaim` in
+`e2e/verdict-assert.ts` — the helper that checks a marker's text, its
+`data-tone`, its pass/fail class and its mark glyph in one call. A text-only
+kill is not evidence: the tone, the class and the tick all survive it, so the
+marker goes on reporting success in every channel a reader can see except the
+sentence.
+
+**That rule used to be enforced by searching the spec source for the call, and a
+mention is not an execution.** A substring match is satisfied by a call inside a
+`//` comment, by an unrelated call in another test in the same file, and by a
+call whose arguments were read off the page in the same test so it cannot fail.
+Auditors defeated the identical mechanism all three ways in sibling labs of this
+fleet: one shipped a page serving `VALID` with its machine-readable result
+saying `fail`, another reported a tampered proof as `ADMITTED`, both with every
+gate green and the mutation record asserting that exact case was covered.
+
+So coverage is now taken from what RAN. `expectVerdict` / `expectClaim` append
+the `(test title, marker id)` pair of every call they execute — with the finding
+that call was making — to a run-scoped sink under `test-results/`, cleared by
+`globalSetup` so yesterday's evidence cannot satisfy today's run. A sink rather
+than an in-memory set because Playwright runs tests in separate worker
+processes, where a module-level `Set` aggregates nothing. `e2e/coverage.spec.ts`
+then requires, for every ledger entry, that **the test the ledger's `--grep`
+names executed a call on that marker carrying the ledger's own `names`
+sentence** — so the mutation record, the assertion message and the failure
+output are one string in three places rather than three strings that happen to
+agree. A list of states (`['pass','fail']`, which the two searching tests use)
+is refused as a kill: the evidence has to name which state it is.
+
+**The tautology needs a second rule, and it is about reading rather than
+asserting.** A call fed values read off the page records its pair like any
+other, so what is caught is the read: the `Locator` value-extraction methods are
+wrapped once per worker, and any extraction from a ledger marker made outside
+the helper is recorded and fails the audit. Web-first assertions
+(`expect(locator).toHaveAttribute(...)`) are not extractions and are not
+recorded — they compare inside the assertion and hand the test no value to build
+an expectation out of. The helper returns what it read, so the tests that need a
+marker's words for a second check — the hex digests in the KAT verdicts, the
+distance the two panes must agree on, the run count the probability is scaled by
+— use the reading the helper asserted instead of fetching it again beside it.
+The limit, stated: a read that reaches a marker without naming it, by walking up
+from a sibling or reading a second element that mirrors the same value, is not
+caught.
+
+It is its own Playwright project, with `dependencies: ['claims', 'verdicts']`.
+That is what makes "after every test" an ordering guarantee rather than a hope,
+and what makes naming this project alone pull both others in. `npm run
+test:verdicts` — the command the CI job that branch protection can require runs
+— names it for that reason: `standing-verdict`'s kill lives in the claims
+project, so a check that ran only `verdicts` could never have judged it. The
+audit also fails with `PROJECT-NOT-OBSERVED` when a run produced observations
+from only some of the projects the ledger names, because a check that could not
+see must not report clean.
+
+The audit is a pure function over `(ledger, observations)` so it can be watched
+failing: eight tests hand it a synthetic run containing each offence — the call
+that never executed, the call made by another test, the call making the wrong
+finding, the list-of-states kill, the value read outside the helper, the
+single-project run, and the empty sink — and require it to name that offence.
 
 ### Proving the tests bite
 

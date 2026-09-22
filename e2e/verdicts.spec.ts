@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { type Page } from '@playwright/test';
+import { LEDGER, expect, test } from './observe';
 import { expectClaim, expectVerdict } from './verdict-assert';
 
 /**
@@ -28,6 +28,14 @@ import { expectClaim, expectVerdict } from './verdict-assert';
  *      kill validated by text alone fails the build instead of being recorded
  *      as evidence — see the header of `e2e/verdict-assert.ts`.
  *
+ * Rule 4 used to live in this file as a scan of the spec SOURCE for the string
+ * `expectVerdict(page, '<id>'`. It is now in `e2e/coverage.spec.ts`, judged from
+ * the calls the helpers actually EXECUTED, and the scan is gone rather than kept
+ * alongside: a mention is satisfied by a commented-out call, by an unrelated
+ * call elsewhere in the file, and by a call fed values read off the page — and a
+ * rule that reads as enforcement while enforcing none of that is worse than no
+ * rule, because it is quoted as evidence.
+ *
  * All three detectors are self-tested below by injecting the exact defect they
  * exist to catch: an unmarked banner, an unmarked number, and a marker no
  * mutation covers. A detector that has never been watched failing is in the
@@ -37,29 +45,6 @@ import { expectClaim, expectVerdict } from './verdict-assert';
  * so that ONE named mutation in the ledger makes THAT assertion fail and leaves
  * the others alone.
  */
-
-interface LedgerEntry {
-  id: string;
-  kind: string;
-  marker?: string | null;
-  claim?: string | null;
-}
-
-const LEDGER: LedgerEntry[] = JSON.parse(
-  readFileSync(new URL('../scripts/mutation-ledger.json', import.meta.url), 'utf8'),
-);
-
-/**
- * The owning tests themselves, read as text.
- *
- * Requiring a ledger entry's marker to be MENTIONED in a spec file would be the
- * weak version of this rule — a mention is not an assertion. What is required
- * is a call through the shared helper, which is the only thing in this repo
- * that asserts a marker's text and its state in one go.
- */
-const SPEC_SOURCE = ['verdicts.spec.ts', 'claims.spec.ts']
-  .map((file) => readFileSync(new URL(`./${file}`, import.meta.url), 'utf8'))
-  .join('\n');
 
 /**
  * The vocabulary a verdict is written in.
@@ -421,28 +406,10 @@ test('every rendered verdict carries a marker that a mutation covers', async ({ 
   const staleClaims = [...coveredClaims].filter((c) => !renderedClaims.has(c)).sort();
   expect(staleClaims, 'the ledger names a measurement that the page no longer renders').toEqual([]);
 
-  // A mutation is only evidence if its owning test asserted the marker's text
-  // AND its state. A mention of the id in a spec file is not an assertion, and
-  // a `toContainText` on its own leaves the tone, the class and the tick
-  // untouched — so what is required is a call through the shared helper.
-  const missingHelper: string[] = [];
-  for (const entry of LEDGER) {
-    if (entry.marker && renderedVerdicts.has(entry.marker)) {
-      if (!SPEC_SOURCE.includes(`expectVerdict(page, '${entry.marker}'`)) {
-        missingHelper.push(`${entry.id} -> expectVerdict(page, '${entry.marker}', …)`);
-      }
-    }
-    if (entry.claim && renderedClaims.has(entry.claim)) {
-      if (!SPEC_SOURCE.includes(`expectClaim(page, '${entry.claim}'`)) {
-        missingHelper.push(`${entry.id} -> expectClaim(page, '${entry.claim}', …)`);
-      }
-    }
-  }
-  expect(
-    missingHelper,
-    'a mutation record whose owning test does not assert its marker through the shared helper: ' +
-      'text alone is not a kill, because the tone, the class and the tick all survive it',
-  ).toEqual([]);
+  // Whether each of those ledger entries is actually ASSERTED — by the test the
+  // ledger names, through the shared helper, making the finding the ledger
+  // records — is judged in `e2e/coverage.spec.ts` from what ran, not from what
+  // this file could find in the source.
 });
 
 test('no verdict wording or verdict styling is rendered outside a marker', async ({ page }) => {
@@ -533,14 +500,14 @@ test('the coverage detector catches a marker no mutation covers', async ({ page 
 test('kat-encrypt reports pass against the RFC 7801 vector it names', async ({ page }) => {
   await page.goto('.');
   await page.locator('#run-kat').click();
-  await expectVerdict(page, 'kat-encrypt', {
+  // The verdict names both sides of the comparison, so a canned PASS cannot
+  // hide behind wording that never mentions what was compared. Both sides are
+  // read out of what the helper asserted, not fetched again beside it.
+  const { text } = await expectVerdict(page, 'kat-encrypt', {
     text: 'PASS',
     state: 'pass',
     because: 'kat-encrypt must report pass on the published vector',
   });
-  // The verdict names both sides of the comparison, so a canned PASS cannot
-  // hide behind wording that never mentions what was compared.
-  const text = (await page.locator('[data-verdict="kat-encrypt"]').textContent()) ?? '';
   const [produced, published] = [...text.matchAll(/\b([0-9a-f]{32})\b/g)].map((m) => m[1]);
   expect(produced, 'kat-encrypt must print the ciphertext it produced').toBeTruthy();
   expect(produced, 'kat-encrypt must report pass on the published vector').toBe(published);
@@ -549,12 +516,11 @@ test('kat-encrypt reports pass against the RFC 7801 vector it names', async ({ p
 test('kat-decrypt reports pass and recovers the published plaintext', async ({ page }) => {
   await page.goto('.');
   await page.locator('#run-kat').click();
-  await expectVerdict(page, 'kat-decrypt', {
+  const { text } = await expectVerdict(page, 'kat-decrypt', {
     text: 'PASS',
     state: 'pass',
     because: 'kat-decrypt must recover the published plaintext',
   });
-  const text = (await page.locator('[data-verdict="kat-decrypt"]').textContent()) ?? '';
   const [recovered, published] = [...text.matchAll(/\b([0-9a-f]{32})\b/g)].map((m) => m[1]);
   expect(recovered, 'kat-decrypt must print the plaintext it recovered').toBeTruthy();
   expect(recovered, 'kat-decrypt must recover the published plaintext').toBe(published);
@@ -634,16 +600,21 @@ test('coset-verdict reports NO COSET once the rebuild stops partitioning', async
   await page.locator('#in-s').fill('0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0');
   await page.locator('#box-select').selectOption('generated');
 
+  // The search across the seventeen cosets still goes through the helper. It
+  // cannot name the state in advance -- that is what it is looking for -- so it
+  // asserts the weaker but still complete claim that the marker is coherently
+  // in one of the two, and classifies from the text the helper read. The old
+  // form fetched `textContent` beside the helper and asserted nothing at all
+  // about the sixteen cosets it walked past.
   const seen: string[] = [];
   for (let i = 0; i < 17; i++) {
     await page.locator('#coset-select').selectOption(String(i));
-    seen.push(
-      ((await page.locator('[data-verdict="coset-verdict"]').textContent()) ?? '').includes(
-        'NO COSET',
-      )
-        ? 'no'
-        : 'yes',
-    );
+    const { text } = await expectVerdict(page, 'coset-verdict', {
+      text: /ADDITIVE COSET|NO COSET/,
+      state: ['pass', 'fail'],
+      because: 'coset-verdict must report one of its two outcomes for every coset it is shown',
+    });
+    seen.push(text.includes('NO COSET') ? 'no' : 'yes');
   }
   expect(
     seen.filter((s) => s === 'no').length,
@@ -777,8 +748,14 @@ test('lottery-probability is the cited one-win figure scaled by the run count sh
   // so nothing written against this page separates them.
   for (const position of ['1', '40', '66', '80']) {
     await page.locator('#lottery-scale').fill(position);
-    const runs = Number(await page.locator('[data-claim="lottery-runs"]').getAttribute('data-value'));
-    expect(runs, 'the readout must report the position the scale is at').toBe(Number(position));
+    // The run count this test scales by is the one the helper ASSERTED, not a
+    // second reading taken beside it. Fetching it with a locator of its own
+    // made the scaling agree with whatever the readout happened to say.
+    const { value } = await expectClaim(page, 'lottery-runs', {
+      value: position,
+      because: 'the readout must report the position the scale is at',
+    });
+    const runs = Number(value);
     const scaled = CITED_ONE_WIN_LOG2 * runs;
     await expectClaim(page, 'lottery-probability', {
       value: scaled.toFixed(1),
