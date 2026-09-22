@@ -18,6 +18,14 @@ import { SOURCES, SOURCE_IDS } from './sources';
 export const LOG2_TKLOG_INSTANCES = 82.6;
 export const LOG2_PERMUTATIONS = 1684;
 export const LOG2_TKLOG_PROBABILITY = LOG2_TKLOG_INSTANCES - LOG2_PERMUTATIONS; // about -1601
+/**
+ * Perrin's FAQ, §2.1.3 and its footnote 5: Loto is won by picking 5 different
+ * numbers in {1,...,49} and one in {1,...,10}, an event of probability
+ * (49 choose 5 × 10)^-1, about 2^-24.2. Both the figure and the rule that
+ * produces it are his, and `e2e/verdicts.spec.ts` checks the figure against
+ * that rule -- so this is a cited constant, not a literal that would agree with
+ * whatever the page happened to print.
+ */
 export const LOG2_LOTTERY = -24.2;
 export const LOTTERY_RUNS = 66;
 
@@ -282,12 +290,16 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
     // What CANNOT be shown here, so what the copy must not claim: composing
     // `runs` independent wins and scaling one figure by `runs` are the same
     // arithmetic in the exponent, so no test written against this page can
-    // separate them. And LOG2_LOTTERY is a literal -- the oracle reads the same
-    // figure the page prints, so any value for it agrees with itself. The row
-    // therefore reads `that run, on the same scale` and leaves the probability
-    // reading to Perrin's framing in the prose above, where it is attributed.
-    // The row below it may say probability: it is the ratio of two separately
-    // printed, separately cited counts, and moving either one moves it.
+    // separate them. The row therefore reads `that run, on the same scale` and
+    // leaves the probability reading to Perrin's framing in the prose above,
+    // where it is attributed. The row below it may say probability: it is the
+    // ratio of two separately printed, separately cited counts, and moving
+    // either one moves it.
+    //
+    // The one-win figure itself is no longer in that category. It is Perrin's,
+    // it is cited where LOG2_LOTTERY is declared and again on the page beside
+    // the number, and the spec holds it to the rule his footnote gives rather
+    // than to whatever this page prints.
     const lotteryExp = LOG2_LOTTERY * runs;
     const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = lottery is still likelier
     clear(readout);
@@ -376,7 +388,12 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
           el('li', { text: `TKlog instances on 8 bits: about 2^${LOG2_TKLOG_INSTANCES} (Perrin, ToSC 2019(1))` }),
           el('li', { text: `permutations of a byte: 256! ≈ 2^${LOG2_PERMUTATIONS}` }),
           el('li', { text: `their ratio: 2^${LOG2_TKLOG_PROBABILITY.toFixed(1)}` }),
-          el('li', { text: `French lottery, one win: about 2^${LOG2_LOTTERY}` }),
+          el('li', {}, [
+            `French lottery, one win: 5 of 49 and one of 10, so (49 choose 5 × 10)^-1, ` +
+              `about 2^${LOG2_LOTTERY} (`,
+            cite('faq', 'Perrin\u2019s FAQ, \u00A72.1.3 n.5'),
+            ')',
+          ]),
         ]),
       ]),
     ]),

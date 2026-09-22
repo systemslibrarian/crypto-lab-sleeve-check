@@ -735,41 +735,52 @@ test('lottery-runs reports the scale position, not the figure Perrin quotes', as
   }
 });
 
-test('lottery-probability is the printed one-win figure scaled by the run count shown', async ({
+test('lottery-probability is the cited one-win figure scaled by the run count shown', async ({
   page,
 }) => {
   await reachTableDiffed(page);
   await page.getByRole('tab', { name: /The Claim/ }).click();
   await page.locator('#pane-claim details summary').first().click();
 
-  // Both inputs are read off the page: the one-win figure from its own details
-  // list, the run count from its own readout. A literal count here would agree
-  // with a page that had stopped reading the scale at all, which is the failure
-  // this oracle does catch.
-  //
-  // It does not catch two others, and the rendered copy is worded accordingly.
-  // Summing the exponent `runs` times and multiplying it by `runs` are the same
-  // arithmetic, so this cannot show that the page composed independent events
-  // rather than scaling one figure — the readout says `that run, on the same
-  // scale` and claims no more. And the one-win figure is a literal the page
-  // prints and this oracle then reads back, so the two agree whatever it is
-  // set to. Contrast `tklog-probability` below, which is derived from two
-  // separately printed counts and does move when either of them does.
-  const listed = (await page.locator('#pane-claim details li').allTextContents()).join(' ');
-  const oneWin = Number(/French lottery, one win: about 2\^(-?[\d.]+)/.exec(listed)?.[1]);
-  expect(oneWin, 'the page must print the one-win probability').toBeLessThan(0);
+  // The one-win figure is held to its CITATION, not to the page. Perrin's FAQ
+  // §2.1.3 and its footnote 5 give both halves: Loto is won by picking 5 of 49
+  // and one of 10, an event of probability (49 choose 5 × 10)^-1, about 2^-24.2.
+  // So this oracle carries the cited figure as its own constant and checks it
+  // against the cited RULE, recomputed here. Reading the figure off the page and
+  // multiplying it up — which is what this test used to do — agreed with any
+  // figure the page printed, including a wrong one.
+  const CITED_ONE_WIN_LOG2 = -24.2; // Perrin's FAQ §2.1.3, footnote 5
+  const choose = (n: number, k: number): number => {
+    let c = 1;
+    for (let i = 0; i < k; i += 1) c = (c * (n - i)) / (i + 1);
+    return c;
+  };
+  expect(
+    -Math.log2(choose(49, 5) * 10),
+    'the cited figure must be what the cited rule produces: (49 choose 5 × 10)^-1',
+  ).toBeCloseTo(CITED_ONE_WIN_LOG2, 1);
 
+  const listed = (await page.locator('#pane-claim details li').allTextContents()).join(' ');
+  const oneWin = Number(/French lottery, one win: .*?about 2\^(-?[\d.]+)/.exec(listed)?.[1]);
+  expect(oneWin, 'the page must print the cited one-win figure, and say whose it is').toBe(
+    CITED_ONE_WIN_LOG2,
+  );
+  expect(listed, 'the one-win figure must carry its citation beside it').toContain('§2.1.3');
+
+  // The remaining limit, and the reason the rendered copy says `that run, on the
+  // same scale` rather than naming a mechanism: scaling one figure by `runs` and
+  // composing `runs` independent wins are the same arithmetic in the exponent,
+  // so nothing written against this page separates them.
   for (const position of ['1', '40', '66', '80']) {
     await page.locator('#lottery-scale').fill(position);
     const runs = Number(await page.locator('[data-claim="lottery-runs"]').getAttribute('data-value'));
     expect(runs, 'the readout must report the position the scale is at').toBe(Number(position));
-    let summed = 0;
-    for (let i = 0; i < runs; i++) summed += oneWin;
+    const scaled = CITED_ONE_WIN_LOG2 * runs;
     await expectClaim(page, 'lottery-probability', {
-      value: summed.toFixed(1),
-      text: `2^${summed.toFixed(1)}`,
+      value: scaled.toFixed(1),
+      text: `2^${scaled.toFixed(1)}`,
       because:
-        'lottery-probability must be the printed one-win figure scaled by the run count shown',
+        'lottery-probability must be the cited one-win figure scaled by the run count shown',
     });
   }
 });

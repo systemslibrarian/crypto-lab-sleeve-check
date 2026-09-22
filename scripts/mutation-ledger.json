@@ -199,6 +199,17 @@
     "names": "lottery-runs must report the position the scale is at"
   },
   {
+    "id": "lottery-figure-uncited",
+    "kind": "browser",
+    "marker": null,
+    "why": "the one-win figure is Perrin's, not this page's -- a different value must fail against the citation, which is exactly what the old oracle could not do, because it read the figure off the page it was judging",
+    "file": "src/ui/claimPane.ts",
+    "from": "export const LOG2_LOTTERY = -24.2;",
+    "to": "export const LOG2_LOTTERY = -30.0;",
+    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the cited one-win figure\"",
+    "names": "the page must print the cited one-win figure, and say whose it is"
+  },
+  {
     "id": "lottery-probability-pinned",
     "kind": "browser",
     "marker": null,
@@ -207,8 +218,8 @@
     "file": "src/ui/claimPane.ts",
     "from": "'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1)",
     "to": "'data-claim': 'lottery-probability', 'data-value': LOG2_LOTTERY.toFixed(1)",
-    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the printed one-win figure\"",
-    "names": "lottery-probability must be the printed one-win figure scaled by the run count shown"
+    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the cited one-win figure\"",
+    "names": "lottery-probability must be the cited one-win figure scaled by the run count shown"
   },
   {
     "id": "tklog-probability-pinned",
