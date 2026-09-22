@@ -735,19 +735,26 @@ test('lottery-runs reports the scale position, not the figure Perrin quotes', as
   }
 });
 
-test('lottery-probability is the one-win probability taken to the number of runs', async ({
+test('lottery-probability is the printed one-win figure scaled by the run count shown', async ({
   page,
 }) => {
   await reachTableDiffed(page);
   await page.getByRole('tab', { name: /The Claim/ }).click();
   await page.locator('#pane-claim details summary').first().click();
 
-  // The independent route: the page prints the ONE-WIN probability in its own
-  // details list, and prints the number of runs in its own readout. log2 of a
-  // probability taken to the n-th power is that exponent added n times — so the
-  // oracle SUMS what the page multiplies, and takes the number of terms from
-  // the scale rather than from a literal. A literal count here would agree with
-  // a page that had stopped reading the scale at all.
+  // Both inputs are read off the page: the one-win figure from its own details
+  // list, the run count from its own readout. A literal count here would agree
+  // with a page that had stopped reading the scale at all, which is the failure
+  // this oracle does catch.
+  //
+  // It does not catch two others, and the rendered copy is worded accordingly.
+  // Summing the exponent `runs` times and multiplying it by `runs` are the same
+  // arithmetic, so this cannot show that the page composed independent events
+  // rather than scaling one figure — the readout says `that run, on the same
+  // scale` and claims no more. And the one-win figure is a literal the page
+  // prints and this oracle then reads back, so the two agree whatever it is
+  // set to. Contrast `tklog-probability` below, which is derived from two
+  // separately printed counts and does move when either of them does.
   const listed = (await page.locator('#pane-claim details li').allTextContents()).join(' ');
   const oneWin = Number(/French lottery, one win: about 2\^(-?[\d.]+)/.exec(listed)?.[1]);
   expect(oneWin, 'the page must print the one-win probability').toBeLessThan(0);
@@ -762,7 +769,7 @@ test('lottery-probability is the one-win probability taken to the number of runs
       value: summed.toFixed(1),
       text: `2^${summed.toFixed(1)}`,
       because:
-        'lottery-probability must be the one-win probability taken to the number of runs shown',
+        'lottery-probability must be the printed one-win figure scaled by the run count shown',
     });
   }
 });

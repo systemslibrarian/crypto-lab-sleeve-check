@@ -272,6 +272,22 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
 
   function drawScale(): void {
     const runs = Number(slider.value);
+    // One literal scaled by the run count, and the readout says only that.
+    //
+    // What can be shown here: this number tracks the one-win figure the page
+    // prints in its own details list, and the run count the readout renders
+    // beside it. `e2e/verdicts.spec.ts` reads both off the page and derives the
+    // expected value from them.
+    //
+    // What CANNOT be shown here, so what the copy must not claim: composing
+    // `runs` independent wins and scaling one figure by `runs` are the same
+    // arithmetic in the exponent, so no test written against this page can
+    // separate them. And LOG2_LOTTERY is a literal -- the oracle reads the same
+    // figure the page prints, so any value for it agrees with itself. The row
+    // therefore reads `that run, on the same scale` and leaves the probability
+    // reading to Perrin's framing in the prose above, where it is attributed.
+    // The row below it may say probability: it is the ratio of two separately
+    // printed, separately cited counts, and moving either one moves it.
     const lotteryExp = LOG2_LOTTERY * runs;
     const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = lottery is still likelier
     clear(readout);
@@ -296,7 +312,7 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
     );
     readout.appendChild(
       el('div', { 'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1) }, [
-        el('span', { class: 'k', text: 'probability of that run' }),
+        el('span', { class: 'k', text: 'that run, on the same scale' }),
         `2^${lotteryExp.toFixed(1)}`,
       ]),
     );

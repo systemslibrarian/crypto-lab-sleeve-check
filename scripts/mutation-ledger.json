@@ -207,8 +207,8 @@
     "file": "src/ui/claimPane.ts",
     "from": "'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1)",
     "to": "'data-claim': 'lottery-probability', 'data-value': LOG2_LOTTERY.toFixed(1)",
-    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the one-win probability\"",
-    "names": "lottery-probability must be the one-win probability taken to the number of runs shown"
+    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the printed one-win figure\"",
+    "names": "lottery-probability must be the printed one-win figure scaled by the run count shown"
   },
   {
     "id": "tklog-probability-pinned",

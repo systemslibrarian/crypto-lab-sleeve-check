@@ -242,12 +242,31 @@ coverage loop, and each has a mutation of its own:
 | marker | what it measures | mutation that proves it can lie |
 |---|---|---|
 | `lottery-runs` | the position the scale is at | `lottery-runs-pinned` |
-| `lottery-probability` | that many consecutive wins, as a power of two | `lottery-probability-pinned` |
+| `lottery-probability` | the printed one-win figure, scaled to that many runs | `lottery-probability-pinned` |
 | `tklog-probability` | the ratio of the two counts the page prints | `tklog-probability-pinned` |
 
 Each of those carries a `data-value` beside the sentence it renders, and the
 owning test asserts both. A mutation that pins one while the other keeps moving
 is the measurement version of a canned verdict.
+
+**One of the three claims less than the other two, on purpose.**
+`tklog-probability` is derived from two separately printed, separately cited
+counts, and moving either one moves it. `lottery-probability` is one literal —
+`LOG2_LOTTERY`, about 2^-24.2 — scaled by the run count, and two things about it
+are outside anything this gate can decide. Composing that many independent wins
+and scaling one figure by that many runs are the same arithmetic in the exponent,
+so no test written against this page separates them. And the oracle reads the
+one-win figure off the page it is judging, so the figure agrees with itself
+whatever it is set to.
+
+So that row reads *that run, on the same scale* rather than *probability of that
+run*: the scale reading is what the page can show, and the probability reading
+stays in the prose above it, where it is attributed to Perrin rather than
+asserted by the readout. **If the page cannot show the difference, it cannot
+claim it.** Lifting the limit means rendering something that separates the two —
+a second, independently sourced figure, or a case where composing and scaling
+disagree — which changes what the pane teaches and is a design decision, not a
+harness fix.
 
 **Coverage is derived by walking the rendered page, not from those tables.**
 `driveEveryState` in `e2e/verdicts.spec.ts` is the DENOMINATOR both coverage
