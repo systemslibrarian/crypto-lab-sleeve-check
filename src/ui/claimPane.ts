@@ -291,17 +291,21 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
     // `runs` independent wins and scaling one figure by `runs` are the same
     // arithmetic in the exponent, so no test written against this page can
     // separate them. The row therefore reads `that run, on the same scale` and
-    // leaves the probability reading to Perrin's framing in the prose above,
-    // where it is attributed. The row below it may say probability: it is the
-    // ratio of two separately printed, separately cited counts, and moving
-    // either one moves it.
+    // leaves the probability reading to Perrin's framing in the `p.note`
+    // BELOW this readout, where it is attributed to him by name. (An earlier
+    // version of this comment said `the prose above`, which was wrong: what
+    // sits above is the card's own lede, and the fix was to attribute the
+    // lottery comparison there too rather than to keep pointing at the wrong
+    // paragraph.) `tklog-probability`, the row directly below, may say
+    // probability: it is the ratio of two separately printed, separately
+    // cited counts, and moving either one moves it.
     //
     // The one-win figure itself is no longer in that category. It is Perrin's,
     // it is cited where LOG2_LOTTERY is declared and again on the page beside
     // the number, and the spec holds it to the rule his footnote gives rather
     // than to whatever this page prints.
     const lotteryExp = LOG2_LOTTERY * runs;
-    const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = lottery is still likelier
+    const shortfall = lotteryExp - LOG2_TKLOG_PROBABILITY; // positive = the run sits above the TKlog figure
     clear(readout);
     // The three rendered MEASUREMENTS of the counting argument.
     //
@@ -345,13 +349,20 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
     readout.appendChild(
       // Marked: this line is the comparison the whole counting argument turns
       // on, and it flips between two opposite readings as the slider moves.
+      // Marked, and therefore held to the same rule as the row above it: a
+      // verdict the gate judges must not assert in the page's own voice what
+      // the page cannot show. This line used to read `likelier` and `rarer`,
+      // which are probability words -- and one side of the comparison is a
+      // cited figure scaled by a run count, not a measured probability. It
+      // compares the two exponents, which is exactly what it can demonstrate,
+      // and the probability reading stays with Perrin, attributed, below.
       el('div', { id: 'scale-compare', 'data-verdict': 'scale-compare' }, [
         el('span', { class: 'k', text: 'which is' }),
         shortfall > 0.5
-          ? `still 2^${shortfall.toFixed(1)} times likelier than the TKlog coincidence`
+          ? `still 2^${shortfall.toFixed(1)} above the TKlog figure on this scale`
           : shortfall < -0.5
-            ? `already 2^${(-shortfall).toFixed(1)} times rarer than the TKlog coincidence`
-            : 'about the same as the TKlog coincidence',
+            ? `already 2^${(-shortfall).toFixed(1)} below the TKlog figure on this scale`
+            : 'level with the TKlog figure on this scale',
       ]),
     );
   }
@@ -364,12 +375,15 @@ export function renderClaimPane(root: HTMLElement, progress: LabProgress): void 
       el('p', { class: 'lede' }, [
         'There are roughly 2^82.6 TKlog instances on 8 bits, against 256! ≈ 2^1684 permutations of ' +
           'a byte. So a permutation drawn at random is a TKlog with probability about 2^−1601. ' +
-          'Move the scale until a run of lottery wins gets that rare. ',
+          'The comparison with a run of lottery wins is Perrin’s; move the scale until one reaches ' +
+          'that figure. ',
         el('span', { class: 'src' }, [
-          'Both counts are Perrin’s: ',
+          'Both counts are Perrin’s, and so is the lottery comparison: ',
           cite('tosc2019'),
           ' (preprint: ',
           cite('eprint2019092'),
+          '; the lottery framing is ',
+          cite('faq', 'his FAQ, §2.1.3'),
           ').',
         ]),
       ]),

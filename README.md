@@ -232,7 +232,7 @@ the DOM:
 | `space-tally` | how many distinct landing spaces the 17 cosets use | `space-tally-threshold` |
 | `constraint-msg` | which generator precondition the edited constants broke | `constraint-msg-silenced` |
 | `standing-verdict` | the pane 3 summary of panes 1 and 2 | `verdict-retirement` |
-| `scale-compare` | whether the lottery run has got rarer than the coincidence | `scale-compare-branch` |
+| `scale-compare` | whether the lottery run sits above or below the TKlog figure | `scale-compare-branch` |
 
 A rendered **number** is a claim on exactly the same terms, and it is the easier
 one to ship unchecked, because a number does not look like a claim. The three
@@ -254,8 +254,13 @@ figure scaled by the run count, and scaling one figure by *n* is the same
 arithmetic in the exponent as composing *n* independent wins — so no test written
 against this page separates them. That row therefore reads *that run, on the same
 scale* rather than *probability of that run*: the scale reading is what the page
-can show, and the probability reading stays in the prose above it, where it is
-attributed to Perrin rather than asserted by the readout. **If the page cannot
+can show, and the probability reading stays with Perrin in the attributed note
+below the readout rather than being asserted by the page itself. `scale-compare`,
+one row down, is a marked verdict and is held to the same rule: it reads *above /
+below the TKlog figure on this scale*, not *likelier / rarer*, because one side
+of that comparison is a cited figure scaled by a run count and not a measured
+probability. The card's lede keeps Perrin's lottery comparison and now attributes
+it at the point of use. **If the page cannot
 show the difference, it cannot claim it.** Lifting that limit means rendering a
 case where composing and scaling disagree, which changes what the pane teaches
 and is a design decision, not a harness fix.

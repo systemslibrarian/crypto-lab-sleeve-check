@@ -696,20 +696,24 @@ test('constraint-msg names the precondition the edited constants broke', async (
   });
 });
 
-test('scale-compare flips once the lottery run gets rarer than the coincidence', async ({ page }) => {
+// `scale-compare` is a marked verdict, so D7 holds it to the same rule as the row
+// above it: it compares two exponents, which the page can show, rather than calling
+// one of them likelier or rarer, which presupposes the probability reading the page
+// cannot establish for a cited figure scaled by a run count.
+test('scale-compare flips once the lottery run drops below the coincidence', async ({ page }) => {
   await reachTableDiffed(page);
   await page.getByRole('tab', { name: /The Claim/ }).click();
   await page.locator('#lottery-scale').fill('40');
   await expectVerdict(page, 'scale-compare', {
-    text: 'likelier than the TKlog coincidence',
+    text: 'above the TKlog figure on this scale',
     state: 'none',
-    because: 'scale-compare must report the shorter run as likelier than the coincidence',
+    because: 'scale-compare must report the shorter run as above the TKlog figure',
   });
   await page.locator('#lottery-scale').fill('80');
   await expectVerdict(page, 'scale-compare', {
-    text: 'rarer than the TKlog coincidence',
+    text: 'below the TKlog figure on this scale',
     state: 'none',
-    because: 'scale-compare must flip to rarer once the run outruns the coincidence',
+    because: 'scale-compare must flip to below once the run outruns the TKlog figure',
   });
 });
 

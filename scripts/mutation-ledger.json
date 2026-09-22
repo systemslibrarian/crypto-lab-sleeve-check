@@ -179,12 +179,12 @@
     "id": "scale-compare-branch",
     "kind": "browser",
     "marker": "scale-compare",
-    "why": "the counting argument pinned to \"still likelier\", which is the reading that makes the whole exhibit say nothing",
+    "why": "the counting argument pinned to \"still above\", which is the reading that makes the whole exhibit say nothing",
     "file": "src/ui/claimPane.ts",
     "from": "        shortfall > 0.5",
     "to": "        shortfall > -1e9",
     "command": "npx playwright test --project=verdicts --grep \"scale-compare flips\"",
-    "names": "scale-compare must flip to rarer once the run outruns the coincidence"
+    "names": "scale-compare must flip to below once the run outruns the TKlog figure"
   },
   {
     "id": "lottery-runs-pinned",
