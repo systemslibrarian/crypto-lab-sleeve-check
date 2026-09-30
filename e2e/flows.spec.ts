@@ -69,7 +69,7 @@ test('the critical path works end to end', async ({ page }) => {
   await page.getByRole('tab', { name: /The Claim/ }).click();
   await expect(page.locator('#standing-verdict')).toContainText('STRUCTURE RECOVERED');
   await page.locator('#lottery-scale').fill('70');
-  await expect(page.locator('#scale-compare')).toContainText('rarer');
+  await expect(page.locator('#scale-compare')).toContainText('below the TKlog figure');
 });
 
 test('pane 2 keeps its state when you leave and come back', async ({ page }) => {

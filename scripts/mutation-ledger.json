@@ -179,12 +179,59 @@
     "id": "scale-compare-branch",
     "kind": "browser",
     "marker": "scale-compare",
-    "why": "the counting argument pinned to \"still likelier\", which is the reading that makes the whole exhibit say nothing",
+    "why": "the counting argument pinned to \"still above\", which is the reading that makes the whole exhibit say nothing",
     "file": "src/ui/claimPane.ts",
     "from": "        shortfall > 0.5",
     "to": "        shortfall > -1e9",
     "command": "npx playwright test --project=verdicts --grep \"scale-compare flips\"",
-    "names": "scale-compare must flip to rarer once the run outruns the coincidence"
+    "names": "scale-compare must flip to below once the run outruns the TKlog figure"
+  },
+  {
+    "id": "lottery-runs-pinned",
+    "kind": "browser",
+    "marker": null,
+    "claim": "lottery-runs",
+    "why": "the scale readout pinned to Perrin's own 66, so the machine-readable half of the claim stops following the control the visitor is moving while the sentence beside it keeps moving",
+    "file": "src/ui/claimPane.ts",
+    "from": "'data-claim': 'lottery-runs', 'data-value': String(runs)",
+    "to": "'data-claim': 'lottery-runs', 'data-value': String(LOTTERY_RUNS)",
+    "command": "npx playwright test --project=verdicts --grep \"lottery-runs reports the scale position\"",
+    "names": "lottery-runs must report the position the scale is at"
+  },
+  {
+    "id": "lottery-figure-uncited",
+    "kind": "browser",
+    "marker": null,
+    "why": "the one-win figure is Perrin's, not this page's -- a different value must fail against the citation, which is exactly what the old oracle could not do, because it read the figure off the page it was judging",
+    "file": "src/ui/claimPane.ts",
+    "from": "export const LOG2_LOTTERY = -24.2;",
+    "to": "export const LOG2_LOTTERY = -30.0;",
+    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the cited one-win figure\"",
+    "names": "the page must print the cited one-win figure, and say whose it is"
+  },
+  {
+    "id": "lottery-probability-pinned",
+    "kind": "browser",
+    "marker": null,
+    "claim": "lottery-probability",
+    "why": "the run's probability reported as ONE win's probability -- the measurement that makes the whole counting argument, collapsed to the figure it is built from",
+    "file": "src/ui/claimPane.ts",
+    "from": "'data-claim': 'lottery-probability', 'data-value': lotteryExp.toFixed(1)",
+    "to": "'data-claim': 'lottery-probability', 'data-value': LOG2_LOTTERY.toFixed(1)",
+    "command": "npx playwright test --project=verdicts --grep \"lottery-probability is the cited one-win figure\"",
+    "names": "lottery-probability must be the cited one-win figure scaled by the run count shown"
+  },
+  {
+    "id": "tklog-probability-pinned",
+    "kind": "browser",
+    "marker": null,
+    "claim": "tklog-probability",
+    "why": "the TKlog probability reported as the INSTANCE COUNT rather than the ratio of the two counts the page prints beside it -- 2^82.6 in place of 2^-1601.4",
+    "file": "src/ui/claimPane.ts",
+    "from": "'data-value': LOG2_TKLOG_PROBABILITY.toFixed(1),",
+    "to": "'data-value': LOG2_TKLOG_INSTANCES.toFixed(1),",
+    "command": "npx playwright test --project=verdicts --grep \"tklog-probability is the ratio\"",
+    "names": "tklog-probability must be the ratio of the two counts the page prints"
   },
   {
     "id": "verdict-retirement",

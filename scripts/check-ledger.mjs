@@ -17,7 +17,11 @@
  *     cannot be applied, or one that would be applied in the wrong place);
  *   - a `to` string already present in the file (the mutation would not be
  *     reversible, and `apply(entry, false)` would strand it);
- *   - a duplicate id, or two entries claiming the same `data-verdict` marker;
+ *   - a duplicate id, or two entries claiming the same `data-verdict` marker or
+ *     the same `data-claim` measurement;
+ *   - one entry claiming both families at once, which would make the coverage
+ *     loop in e2e/verdicts.spec.ts count it twice and leave one of the two
+ *     unowned;
  *   - a browser entry whose `--grep` matches no test name in e2e/, which is how
  *     a renamed test turns a mutation into a no-op that reports DEAD ORACLE.
  *
@@ -42,16 +46,31 @@ const seenIds = new Set();
 const seenMarkers = new Map();
 
 for (const entry of LEDGER) {
-  const { id, file, from, to, marker, command, names, kind } = entry;
+  const { id, file, from, to, marker, claim, command, names, kind } = entry;
 
   if (seenIds.has(id)) problems.push(`${id}: duplicate ledger id`);
   seenIds.add(id);
 
-  if (marker) {
-    if (seenMarkers.has(marker)) {
-      problems.push(`${id}: marker "${marker}" is already claimed by ${seenMarkers.get(marker)}`);
+  // Two marker families, judged on the same terms: `data-verdict` is a rendered
+  // OUTCOME, `data-claim` a rendered MEASUREMENT. A number on the page is as
+  // much a claim as a word, and it is the easier one to ship unchecked -- so a
+  // measurement gets a mutation record exactly like a verdict does.
+  if (marker && claim) {
+    problems.push(
+      `${id}: claims both a verdict marker ("${marker}") and a measurement ("${claim}"). One ` +
+        `entry owns one rendered claim, or the coverage loop counts it twice and leaves one ` +
+        `of the two unowned.`,
+    );
+  }
+  for (const [family, value] of [
+    ['verdict marker', marker],
+    ['measurement', claim],
+  ]) {
+    if (!value) continue;
+    if (seenMarkers.has(value)) {
+      problems.push(`${id}: ${family} "${value}" is already claimed by ${seenMarkers.get(value)}`);
     }
-    seenMarkers.set(marker, id);
+    seenMarkers.set(value, id);
   }
 
   let text;
@@ -89,10 +108,12 @@ for (const entry of LEDGER) {
   }
 }
 
-const markers = [...seenMarkers.keys()].sort();
+const verdictMarkers = LEDGER.map((e) => e.marker).filter(Boolean).sort();
+const claimMarkers = LEDGER.map((e) => e.claim).filter(Boolean).sort();
 console.log(
-  `Ledger: ${LEDGER.length} entries, ${markers.length} of them covering a rendered verdict ` +
-    `(${markers.join(', ')}).`,
+  `Ledger: ${LEDGER.length} entries, ${verdictMarkers.length} covering a rendered verdict ` +
+    `(${verdictMarkers.join(', ')}) and ${claimMarkers.length} covering a rendered measurement ` +
+    `(${claimMarkers.join(', ')}).`,
 );
 
 if (problems.length) {

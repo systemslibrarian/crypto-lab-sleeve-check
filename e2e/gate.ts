@@ -847,11 +847,11 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await scanAt('pane 3: the standing verdict with every check green');
 
   await page.locator('#lottery-scale').fill('10');
-  await expect(page.locator('#scale-compare')).toContainText('likelier');
-  await scanAt('pane 3: the scale at 10 wins, still far likelier');
+  await expect(page.locator('#scale-compare')).toContainText('above the TKlog figure');
+  await scanAt('pane 3: the scale at 10 wins, still far above the TKlog figure');
 
   await page.locator('#lottery-scale').fill('70');
-  await expect(page.locator('#scale-compare')).toContainText('rarer');
+  await expect(page.locator('#scale-compare')).toContainText('below the TKlog figure');
   await scanAt('pane 3: the scale past the crossing point');
 
   await page.locator('#pane-claim details summary').first().click();

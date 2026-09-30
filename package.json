@@ -16,7 +16,7 @@
     "test:e2e:all": "playwright test",
     "test:flows": "playwright test --project=flows-chromium --project=flows-firefox --project=flows-webkit --project=flows-mobile",
     "test:mutation": "node scripts/mutation.mjs",
-    "test:verdicts": "playwright test --project=verdicts",
+    "test:verdicts": "playwright test --project=coverage",
     "test:watch": "vitest",
     "verify": "npm test && npm run build && npm run check:ledger && npm run test:e2e:all && npm run check:counts"
   },

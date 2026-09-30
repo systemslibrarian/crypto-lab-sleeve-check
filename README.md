@@ -150,6 +150,8 @@ npm test               # unit + KAT suite (Vitest)
 npm run build          # typecheck, then production build
 npm run test:a11y      # axe WCAG 2.1 A/AA gate against the production build
 npm run test:claims    # the claims suite
+npm run test:verdicts  # marker coverage, and whether its assertions actually ran
+                       # (the `coverage` project, which pulls in claims + verdicts)
 npm run test:flows     # the critical path in Chromium, Firefox, WebKit, mobile
 npm run test:mutation  # re-prove that the tests bite (see below)
 npm run check:links    # re-check that every cited source still resolves
@@ -168,7 +170,7 @@ npm run check:links    # re-check that every cited source still resolves
 
 ## Build & Verify
 
-**173 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 13 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
+**186 tests, all executed in CI: 91 Vitest + 31 Playwright claims + 26 verdict-coverage checks + 36 cross-browser flow runs + 2 axe gates.**
 `npm run check:counts` re-derives these numbers from the runners and fails if this sentence drifts.
 It is a step in the CI gate as well as in `npm run verify`, so the sentence cannot go stale on
 `main` with nothing red.
@@ -232,27 +234,147 @@ the DOM:
 | `space-tally` | how many distinct landing spaces the 17 cosets use | `space-tally-threshold` |
 | `constraint-msg` | which generator precondition the edited constants broke | `constraint-msg-silenced` |
 | `standing-verdict` | the pane 3 summary of panes 1 and 2 | `verdict-retirement` |
-| `scale-compare` | whether the lottery run has got rarer than the coincidence | `scale-compare-branch` |
+| `scale-compare` | whether the lottery run sits above or below the TKlog figure | `scale-compare-branch` |
 
-**Coverage is derived by walking the rendered page, not from that table.**
-`e2e/verdicts.spec.ts` drives every state the lab renders a verdict in — both
-lock cards, the passing KAT, the empty and the filled grid, the AES control, the
-failure states a broken constant reaches, and both readings of the probability
-scale — collects every `data-verdict` it finds, and fails if any of them has no
-mutation in `scripts/mutation-ledger.json`. It fails in the other direction too,
-when the ledger names a marker the page has stopped rendering.
+A rendered **number** is a claim on exactly the same terms, and it is the easier
+one to ship unchecked, because a number does not look like a claim. The three
+the counting argument turns on carry `data-claim` markers, are in the same
+coverage loop, and each has a mutation of its own:
+
+| marker | what it measures | mutation that proves it can lie |
+|---|---|---|
+| `lottery-runs` | the position the scale is at | `lottery-runs-pinned` |
+| `lottery-probability` | the printed one-win figure, scaled to that many runs | `lottery-probability-pinned` |
+| `tklog-probability` | the ratio of the two counts the page prints | `tklog-probability-pinned` |
+
+Each of those carries a `data-value` beside the sentence it renders, and the
+owning test asserts both. A mutation that pins one while the other keeps moving
+is the measurement version of a canned verdict.
+
+**`lottery-probability` claims less than the other two, and says so.** It is one
+figure scaled by the run count, and scaling one figure by *n* is the same
+arithmetic in the exponent as composing *n* independent wins — so no test written
+against this page separates them. That row therefore reads *that run, on the same
+scale* rather than *probability of that run*: the scale reading is what the page
+can show, and the probability reading stays with Perrin in the attributed note
+below the readout rather than being asserted by the page itself. `scale-compare`,
+one row down, is a marked verdict and is held to the same rule: it reads *above /
+below the TKlog figure on this scale*, not *likelier / rarer*, because one side
+of that comparison is a cited figure scaled by a run count and not a measured
+probability. The card's lede keeps Perrin's lottery comparison and now attributes
+it at the point of use. **If the page cannot
+show the difference, it cannot claim it.** Lifting that limit means rendering a
+case where composing and scaling disagree, which changes what the pane teaches
+and is a design decision, not a harness fix.
+
+**The figure itself is cited, and the oracle is held to the citation rather than
+to the page.** `LOG2_LOTTERY` is Perrin's: his FAQ §2.1.3 and its footnote 5 give
+both the value and the rule behind it — Loto is won by picking 5 of 49 and one of
+10, an event of probability (49 choose 5 × 10)^-1, about 2^-24.2. The constant
+carries that citation, the page prints the rule and links the source beside the
+number, and `e2e/verdicts.spec.ts` holds its own copy of the cited figure,
+recomputes (49 choose 5 × 10)^-1 to check it, and requires the page to match.
+The earlier version read the one-win figure off the page and multiplied it up,
+which agreed with any figure the page printed, including a wrong one; the
+`lottery-figure-uncited` ledger entry is that failure made reproducible.
+
+**Coverage is derived by walking the rendered page, not from those tables.**
+`driveEveryState` in `e2e/verdicts.spec.ts` is the DENOMINATOR both coverage
+rules enumerate over, so it visits **every option of every control that changes
+what renders, each control on its own** — both lock cards, all nine round keys,
+the four stages of a stepped round, the passing KAT, the empty and the filled
+grid, all three boxes, all seventeen cosets, all three ways the constants can
+break a precondition, and all eighty positions of the probability scale. Option
+counts are read from the controls, not written down here, so a select that grows
+an option grows the walk with it. Anything renderable only at a value the walk
+skips would sit outside the set the rules judge, which is the same
+discovered-rather-than-declared defect one level up.
+
+Over that walk, the first check collects every `data-verdict` and `data-claim`
+it finds and fails if any of them has no mutation in
+`scripts/mutation-ledger.json`. It fails in the other direction too, when the
+ledger names a marker the page has stopped rendering.
 
 A second check fails on verdict **wording** (`PASS`, `MISMATCH`, `NO COSET` and
-the rest, upper case and whole-word) or verdict **styling** (`.verdict`,
-`.is-pass`, `.is-fail`, `[data-tone]`) rendered anywhere in `#app` — hero,
-panes and footer, not just the exhibit panes — outside a marked subtree. That is what stops the easy way around the first check: bolting a raw
-banner onto the page and simply not marking it. Both detectors are themselves
-watched failing — two tests inject the exact defect, an unmarked banner and a
-marker absent from the ledger, and require each detector to report it.
+the rest, upper case and whole-word), verdict **styling** (`.verdict`,
+`.is-pass`, `.is-fail`, `[data-tone]`) or a rendered **measurement** (a
+digit-plus-unit, or a bare number in the stats grid) outside a marked subtree.
+The first two are scanned across `#app` — hero, panes and footer, not just the
+exhibit panes. The third is scanned in result regions only: the page's own
+`role="status"` / `aria-live` regions plus the stats grid, the coset detail and
+the step caption. Static prose is deliberately out of scope, because "a 16-byte
+block" in an explanatory paragraph is not a claim the run produces. Together
+they stop the easy way around the first check: bolting a raw banner, or a raw
+number, onto the page and simply not marking it. All three detectors are
+themselves watched failing — three tests inject the exact defect, an unmarked
+banner, an unmarked number and a marker absent from the ledger, and require each
+detector to report it.
 
 The ledger is data, in `scripts/mutation-ledger.json`, precisely so the runner
 and the coverage check read the same list. Two copies of a list is how a verdict
 ends up covered on paper and uncovered in fact.
+
+### Whether the assertions the ledger rests on actually ran
+
+Every marker is asserted through `expectVerdict` / `expectClaim` in
+`e2e/verdict-assert.ts` — the helper that checks a marker's text, its
+`data-tone`, its pass/fail class and its mark glyph in one call. A text-only
+kill is not evidence: the tone, the class and the tick all survive it, so the
+marker goes on reporting success in every channel a reader can see except the
+sentence.
+
+**That rule used to be enforced by searching the spec source for the call, and a
+mention is not an execution.** A substring match is satisfied by a call inside a
+`//` comment, by an unrelated call in another test in the same file, and by a
+call whose arguments were read off the page in the same test so it cannot fail.
+Auditors defeated the identical mechanism all three ways in sibling labs of this
+fleet: one shipped a page serving `VALID` with its machine-readable result
+saying `fail`, another reported a tampered proof as `ADMITTED`, both with every
+gate green and the mutation record asserting that exact case was covered.
+
+So coverage is now taken from what RAN. `expectVerdict` / `expectClaim` append
+the `(test title, marker id)` pair of every call they execute — with the finding
+that call was making — to a run-scoped sink under `test-results/`, cleared by
+`globalSetup` so yesterday's evidence cannot satisfy today's run. A sink rather
+than an in-memory set because Playwright runs tests in separate worker
+processes, where a module-level `Set` aggregates nothing. `e2e/coverage.spec.ts`
+then requires, for every ledger entry, that **the test the ledger's `--grep`
+names executed a call on that marker carrying the ledger's own `names`
+sentence** — so the mutation record, the assertion message and the failure
+output are one string in three places rather than three strings that happen to
+agree. A list of states (`['pass','fail']`, which the two searching tests use)
+is refused as a kill: the evidence has to name which state it is.
+
+**The tautology needs a second rule, and it is about reading rather than
+asserting.** A call fed values read off the page records its pair like any
+other, so what is caught is the read: the `Locator` value-extraction methods are
+wrapped once per worker, and any extraction from a ledger marker made outside
+the helper is recorded and fails the audit. Web-first assertions
+(`expect(locator).toHaveAttribute(...)`) are not extractions and are not
+recorded — they compare inside the assertion and hand the test no value to build
+an expectation out of. The helper returns what it read, so the tests that need a
+marker's words for a second check — the hex digests in the KAT verdicts, the
+distance the two panes must agree on, the run count the probability is scaled by
+— use the reading the helper asserted instead of fetching it again beside it.
+The limit, stated: a read that reaches a marker without naming it, by walking up
+from a sibling or reading a second element that mirrors the same value, is not
+caught.
+
+It is its own Playwright project, with `dependencies: ['claims', 'verdicts']`.
+That is what makes "after every test" an ordering guarantee rather than a hope,
+and what makes naming this project alone pull both others in. `npm run
+test:verdicts` — the command the CI job that branch protection can require runs
+— names it for that reason: `standing-verdict`'s kill lives in the claims
+project, so a check that ran only `verdicts` could never have judged it. The
+audit also fails with `PROJECT-NOT-OBSERVED` when a run produced observations
+from only some of the projects the ledger names, because a check that could not
+see must not report clean.
+
+The audit is a pure function over `(ledger, observations)` so it can be watched
+failing: eight tests hand it a synthetic run containing each offence — the call
+that never executed, the call made by another test, the call making the wrong
+finding, the list-of-states kill, the value read outside the helper, the
+single-project run, and the empty sink — and require it to name that offence.
 
 ### Proving the tests bite
 
