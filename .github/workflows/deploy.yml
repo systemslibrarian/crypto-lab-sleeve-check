@@ -52,12 +52,13 @@ jobs:
         run: npm test
       - name: Build (typecheck gates the build)
         run: npm run build
-      # The README's "160 tests ... 91 Vitest + 31 claims + 36 cross-browser
-      # flow runs + 2 axe gates" sentence is a claim like any other, and it was
+      # The README's test-count sentence is a claim like any other, and it was
       # the only claim in this lab that nothing in CI checked -- it held solely
-      # because a human remembered to run `npm run verify` before pushing. That
-      # is this fleet's signature failure shape: a statement that can go wrong
-      # on main with nothing turning red.
+      # because a human remembered to run `npm run verify` before pushing. Keep
+      # the numeric census in the README and its checker rather than duplicating
+      # it here, where an older total could look authoritative after the suite
+      # grows. That is this fleet's signature failure shape: a statement that
+      # can go wrong on main with nothing turning red.
       #
       # It costs 1.2s and needs no browser binaries -- it only *lists* the
       # suites -- so it runs before the install rather than after it. Verified
@@ -166,8 +167,6 @@ jobs:
       pull-requests: write
       actions: write   # required by the deploy dispatch; without it gh workflow run 403s
     steps:
-      - id: meta
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3
       # Majors included on purpose. `needs:` above already required the whole
       # gate to pass, and that gate -- unit tests, build, axe WCAG and the
       # claims suite -- judges a bump far better than its version number does.
@@ -202,8 +201,7 @@ jobs:
           # a file that does not exist. That failure 404s ONLY on the auto-merge
           # path and only after the merge has landed, so it is invisible until a
           # bump merges and the site quietly stops updating.
-          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main \
-            || echo "::warning::deploy dispatch failed; run deploy.yml by hand"
+          gh workflow run deploy.yml --repo "$GITHUB_REPOSITORY" --ref main
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
