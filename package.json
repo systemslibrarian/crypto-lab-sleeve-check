@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run test:workflow-controls && tsc --noEmit && vite build",
     "check:counts": "node scripts/check-test-counts.mjs",
     "check:ledger": "node scripts/check-ledger.mjs",
     "check:links": "node scripts/check-links.mjs",
@@ -17,6 +17,7 @@
     "test:flows": "playwright test --project=flows-chromium --project=flows-firefox --project=flows-webkit --project=flows-mobile",
     "test:mutation": "node scripts/mutation.mjs",
     "test:verdicts": "playwright test --project=coverage",
+    "test:workflow-controls": "node --test tests/workflow-controls.node.mjs",
     "test:watch": "vitest",
     "verify": "npm test && npm run build && npm run check:ledger && npm run test:e2e:all && npm run check:counts"
   },
