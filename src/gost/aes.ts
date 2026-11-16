@@ -50,7 +50,7 @@ export function generateAesSbox(): number[] {
 }
 
 /**
- * Three entries from the FIPS 197 Figure 7 lookup table, as an independent
+ * Three entries from the FIPS 197 (2001) Figure 7 lookup table, as an independent
  * check that the two halves above were assembled correctly.
  */
 export const AES_SBOX_SPOT_CHECKS: ReadonlyArray<readonly [number, number]> = [
