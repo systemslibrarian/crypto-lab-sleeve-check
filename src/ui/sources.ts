@@ -63,7 +63,7 @@ export const SOURCES = {
   eprint2019528: {
     label: 'Bonnetain–Perrin–Tian, eprint 2019/528',
     href: 'https://eprint.iacr.org/2019/528',
-    cite: 'Xavier Bonnetain, Léo Perrin, Shizhu Tian, “Anomalies and Vector Space Search: Tools for S-Box Reverse-Engineering”, ePrint 2019/528 — the paper addressing the coincidence argument.',
+    cite: 'Xavier Bonnetain, Léo Perrin, Shizhu Tian, “Anomalies and Vector Space Search: Tools for S-Box Analysis”, ASIACRYPT 2019; full version ePrint 2019/528 — the paper addressing the coincidence argument.',
   },
   eurocrypt2016: {
     label: 'EUROCRYPT 2016',

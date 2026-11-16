@@ -363,6 +363,11 @@ test('the AES control does not claim AES has no coset structure', async ({ page 
   // The honest version of the contrast, which the naive measurement would get wrong.
   expect(copy).toMatch(/Every one of AES.s 17 cosets also lands on an additive coset/);
   expect(copy).toMatch(/how many DISTINCT spaces/);
+  // And the interval is the one this lab's own sources support: the table is
+  // GOST R 34.11-2012, the first decomposition EUROCRYPT 2016 and the TKlog
+  // ToSC 2019(1) -- four to seven years, not "twenty years later".
+  expect(copy).toMatch(/four\s*to seven years after the table was published/);
+  expect(copy).not.toMatch(/twenty years/);
 });
 
 // ── 4.1b: the free cross-check from the brief's edge cases ──────────────────
@@ -518,6 +523,13 @@ test('the bibliography lists every source the page can cite, with no orphans', a
     .evaluateAll((els) => els.map((e) => e.getAttribute('href') ?? ''));
   expect(hrefs).toHaveLength(listed.length);
   for (const href of hrefs) expect(ALLOWED_SOURCE_HOSTS).toContain(new URL(href).host);
+
+  // ePrint 2019/528 is titled "...Tools for S-Box Analysis" (ASIACRYPT 2019,
+  // pp. 196-223), not "...Tools for S-Box Reverse-Engineering" -- that is the
+  // title of the 2016 EUROCRYPT paper's subject, not this one's.
+  const bibliography = (await page.locator('#bibliography').innerText()).replace(/\s+/g, ' ');
+  expect(bibliography).toContain('Tools for S-Box Analysis');
+  expect(bibliography).not.toContain('Tools for S-Box Reverse-Engineering');
 });
 
 test('source links open safely and are not identified by colour alone', async ({ page }) => {

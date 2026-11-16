@@ -6,7 +6,8 @@
  * constants: invert in F_2^8, then apply one fixed GF(2)-affine map. Both halves
  * are written out below. That is the contrast the exhibit rests on -- not that
  * AES is structureless, but that its structure was published by its designers
- * rather than recovered from the table twenty years later.
+ * rather than recovered from the table by outsiders four to seven years after
+ * publication (GOST R 34.11-2012; EUROCRYPT 2016, then the 2019 TKlog).
  *
  * INV-7 again: AES's field is x^8+x^4+x^3+x+1 (0x11B), a third polynomial,
  * distinct from both of the GOST ones.

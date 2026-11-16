@@ -426,7 +426,9 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
             'a fixed GF(2)-affine map and b = 0x63 — both halves published in ',
           cite('fips197', 'FIPS 197, §5.1.1'),
           '. The contrast is not that AES is structureless. It is that AES’s structure was ' +
-            'stated by its designers, and π’s was recovered from the table twenty years later.',
+            'stated by its designers, and π’s was recovered from the table by outsiders four ' +
+            'to seven years after the table was published — GOST R 34.11-2012 printed it, the ' +
+            'first decomposition came at EUROCRYPT 2016 and the TKlog in 2019.',
         ]),
       ]),
     ]),
