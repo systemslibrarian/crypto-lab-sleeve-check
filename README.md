@@ -51,7 +51,7 @@ read rather than deployed.
    Streebog S-box of RFC 6986 §6.2 as well. One generator, two standards.
 4. **The coset view.** The 255 non-zero inputs split into 17 multiplicative
    cosets of the subfield F₁₆. Select one and watch its 15 members land, as a
-   set, on an additive coset of a 4-dimensional space. A running tally counts
+   set, on 15 of the 16 points in an affine coset. The offset is the missing point. A running tally counts
    how many *distinct* spaces the 17 cosets use.
 5. **The AES control.** The same selector over the AES S-box, built here from
    its FIPS 197 definition: `S(0) = b` and `S(x) = A·x⁻¹ ⊕ b`. π uses 2 landing
@@ -59,7 +59,7 @@ read rather than deployed.
    that comparison is wrong.
 6. **Break it yourself.** Edit `s`, any λ vector or `cstt` and the rebuilt grid
    diverges live, with the broken constraint named. Switch the coset view to
-   your version and the partition goes with it.
+   your version to check whether the structure survived. Malformed fields pause the rebuild.
 7. **The Claim.** The sourced record of what the designers have said and when; a
    movable scale that puts 2⁻¹⁶⁰¹ beside a run of lottery wins; and the gap
    between the shape π has and the shape a structural condition of Bannier's
@@ -83,18 +83,17 @@ read rather than deployed.
 https://systemslibrarian.github.io/crypto-lab-sleeve-check/
 
 Run the RFC vectors, rebuild the table, sweep the coset selector across π and
-then across AES, then break a constant and watch every green verdict retire at
-once.
+then across AES, then edit a constant and compare the byte-match verdict with the structural verdict.
 
 ## What Can Go Wrong
 
-- **The naive AES comparison is false.** "Each coset lands on an additive coset
+- **The naive AES comparison is false.** "Each coset fills all but one point of an affine coset
   of some 4-dimensional space" is true of the AES S-box too — a multiplicative
   coset of F\*₁₆ already *is* a 4-dimensional subspace with zero removed,
-  inversion permutes those, and AES's affine layer is GF(2)-linear. All 17 of
+  inversion permutes those, and the affine layer preserves affine spaces. All 17 of
   AES's cosets pass that test. The real distinction is how many *distinct*
-  spaces the landing sets use: π uses 2, AES uses 17. Only the first is a
-  partition. A lab that shipped the naive test would report a contrast that is
+  spaces the landing sets use: π uses 2, AES uses 17. Both permutations cover every output once
+  with the image of zero included. Only π has sixteen parallel completed slices. A lab that shipped the naive test would report a contrast that is
   not there, so the tally is what the page counts.
 - **The log of the identity element.** In the port, `log_α(1)` must be taken as
   **255, not 0**. Both name the same field element, but with 0 the x = 1 branch
@@ -108,8 +107,8 @@ once.
   rather than letting the selector imply uniformity.
 - **RFC 7801 §4.2 has a typo.** As published it reads `148*delta(a_15) +
   32*delta(a_15)` — a₁₅ twice, a₁₄ never. Erratum **EID 6928** (Technical,
-  status *Reported*) corrects the second to a₁₄, and the RFC's own §5 vectors do
-  not reproduce without that correction. The RFC's one *Verified* erratum, EID
+  status *Verified*) corrects the second to a₁₄, and the RFC's own §5 vectors do
+  not reproduce without that correction. A separate verified erratum, EID
   4660, is editorial and unrelated: it fixes "belonging to Z" to "belonging to
   Q" in the §3.2 definition of δ.
 - **Two fields, and they are not interchangeable.** π is a TKlog over

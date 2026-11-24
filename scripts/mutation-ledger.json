@@ -157,10 +157,10 @@
     "id": "space-tally-threshold",
     "kind": "browser",
     "marker": "space-tally",
-    "why": "the partition threshold widened past the AES control, which is the one comparison that gives the headline its meaning",
+    "why": "the subfield-direction test forced true for the AES control, erasing the difference measured by the tally",
     "file": "src/ui/tablePane.ts",
-    "from": "      (distinct <= 2",
-    "to": "      (distinct <= 20",
+    "from": "    } else if (sharedSlices) {",
+    "to": "    } else if (sharedSlices || distinct === 17) {",
     "command": "npx playwright test --project=verdicts --grep \"space-tally calls seventeen\"",
     "names": "space-tally must deny a partition at seventeen spaces"
   },

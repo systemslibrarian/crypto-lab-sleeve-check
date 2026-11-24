@@ -43,7 +43,7 @@ export const SOURCES = {
   eid6928: {
     label: 'erratum EID 6928',
     href: 'https://www.rfc-editor.org/errata/eid6928',
-    cite: 'RFC 7801 erratum EID 6928 — Reported, Technical. Corrects §4.2’s second coefficient from δ(a₁₅) to δ(a₁₄). Without it the RFC’s own §5 vectors do not reproduce.',
+    cite: 'RFC 7801 erratum EID 6928 — Verified, Technical. Corrects §4.2’s second coefficient from δ(a₁₅) to δ(a₁₄). Without it the RFC’s own §5 vectors do not reproduce.',
   },
   tosc2019: {
     label: 'Perrin, ToSC 2019(1)',

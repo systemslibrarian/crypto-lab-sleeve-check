@@ -12,7 +12,7 @@
 import { PI_RFC6986, PI_RFC7801 } from '../gost/reference';
 import { generateTklog, PI_PARAMS, TKLOG_FIELD, type TklogParams } from '../gost/tklog';
 import { diffTables } from '../gost/diff';
-import { cosetViews, distinctSpaceCount, type CosetView } from '../gost/cosets';
+import { cosetViews, distinctSpaceCount, tilesOutputSpace, type CosetView } from '../gost/cosets';
 import { generateAesSbox, AES_FIELD } from '../gost/aes';
 import { subfield16, type LogTables } from '../gost/field';
 import { cite, clear, el, hex2, scrollRegion, verdict } from './dom';
@@ -106,11 +106,12 @@ function complementsSubfield(lambda: readonly number[], field: LogTables): boole
   return sums.size === 256;
 }
 
-export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) => void): void {
+export function renderTablePane(root: HTMLElement, onDiffed: (distance: number | null) => void): void {
   clear(root);
 
   let params: TklogParams = PI_PARAMS;
   let generated: number[] | null = null;
+  let requested = false;
   const everMismatched = new Set<number>();
 
   // ---------------------------------------------------------------- intro --
@@ -213,6 +214,8 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
 
   const genBtn = el('button', { class: 'act', type: 'button', id: 'generate-diff', text: 'Generate & Diff' });
   genBtn.addEventListener('click', () => {
+    if (genBtn.disabled) return;
+    requested = true;
     generated = generateTklog(params);
     paintDiff();
     refreshCoset();
@@ -252,7 +255,7 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
           'A TKlog is ',
           el('strong', {
             text:
-              'a discrete logarithm on F₂₈ composed with an integer-to-field map recovered by ' +
+              'a discrete logarithm on the nonzero elements of GF(256) composed with an integer-to-field map recovered by ' +
               'Perrin (2019) — not published by the designers.',
           }),
         ]),
@@ -267,7 +270,7 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
           'The representation field is F₂[X]/(X⁸+X⁴+X³+X²+1) and α is its generator. That field is ' +
             'Perrin’s choice of representation, recovered along with the constants. GOST ' +
             'specified no field for π — it published a lookup table. ',
-          el('span', { class: 'src' }, ['The equations above are ', cite('tosc2019'), ', §4.']),
+          el('span', { class: 'src' }, ['The equations above are ', cite('tosc2019'), ', §3.1.']),
         ]),
         el('p', { class: 'note' }, [
           'One subtlety the port has to get right: the multiplicative identity has two log ' +
@@ -295,7 +298,7 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
   const cosetVerdict = verdict('coset-verdict');
   const cosetDetail = el('div', { class: 'stack-gap', id: 'coset-detail' });
   // Marked: the distinct-space count IS the headline finding of this pane --
-  // two spaces is a partition, seventeen is not -- so it is a verdict.
+  // the byte match and the geometric structure can change independently.
   const tally = el('p', { class: 'note', id: 'space-tally', 'data-verdict': 'space-tally' });
 
   function currentBox(): { key: BoxKey; table: number[]; field: LogTables; name: string } {
@@ -335,13 +338,13 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
     if (view.space === null) {
       cosetVerdict.set('fail', '✕', [
         el('strong', { text: 'NO COSET' }),
-        ` — the 15 inputs of coset ${view.index} do not land on an additive coset of any ` +
-          '4-dimensional space. The partition is gone.',
+        ` — the 15 inputs of coset ${view.index} do not cover 15 distinct points of any affine coset of a ` +
+          '4-dimensional space.',
       ]);
     } else {
       cosetVerdict.set('pass', '✓', [
         el('strong', { text: 'ADDITIVE COSET' }),
-        ` — the 15 inputs land exactly on { ${hex2(view.offset ?? 0)} ⊕ w } for w in a ` +
+        ` — the 15 outputs occupy 15 of the 16 points in an additive coset. The missing byte is ${hex2(view.offset ?? 0)}. Each output equals this byte XOR a nonzero member of a ` +
           `4-dimensional space${view.spaceIsSubfield ? ', and that space is the subfield F₁₆ itself' : ''}.`,
       ]);
     }
@@ -365,13 +368,22 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
       );
     }
 
+    const incomplete = views.filter((group) => group.space === null).length;
+    const coverage = tilesOutputSpace(views, box.table);
+    const sharedSlices = views.slice(1).every((group) => group.spaceIsSubfield);
+    let explanation: string;
+    if (incomplete > 0) {
+      explanation = `${incomplete} of 17 groups lack a 15-point affine landing set.`;
+    } else if (!coverage) {
+      explanation = 'The groups and the image of zero overlap, so they do not partition the outputs.';
+    } else if (sharedSlices) {
+      explanation = 'Groups 1–16 complete to parallel cosets of the same subfield, a partition of all 256 outputs. Group 0 and the image of zero supply their missing points.';
+    } else {
+      explanation = 'The groups and the image of zero cover every output once. Groups 1–16 do not share the subfield direction seen in the published π.';
+    }
     tally.textContent =
       `Across all 17 cosets, ${box.name} uses ${distinct} distinct landing space` +
-      (distinct === 1 ? '' : 's') +
-      '. ' +
-      (distinct <= 2
-        ? 'Few spaces means the landing sets are parallel slices of one and the same subspace — a partition.'
-        : 'Seventeen different spaces means the landing sets line up with nothing; there is no partition here.');
+      (distinct === 1 ? '. ' : 's. ') + explanation;
   }
 
   cosetSelect.addEventListener('change', refreshCoset);
@@ -382,7 +394,7 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
       el('h2', { text: 'Where the cosets land' }),
       el('p', { class: 'lede' }, [
         'The 255 non-zero inputs split into 17 groups of 15 — the multiplicative cosets of the ' +
-          'small subfield F₁₆ sitting inside F₂₈. Pick one group on the left and ' +
+          'small subfield F₁₆ sitting inside GF(256). Pick one group on the left and ' +
           'watch where its 15 members land on the right. Then switch the box to AES and do it again.',
       ]),
       el('div', { class: 'row' }, [
@@ -403,17 +415,17 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
       el('details', {}, [
         el('summary', { text: 'Why the AES comparison is not simply “AES has no structure”' }),
         el('p', {}, [
-          'Every one of AES’s 17 cosets also lands on an additive coset of some 4-dimensional ' +
+          'Every one of AES’s 17 cosets also fills all but one point of an affine coset of some 4-dimensional ' +
             'space, and for a dull reason: a multiplicative coset of F*₁₆ already is a ' +
             '4-dimensional subspace with zero removed, inversion permutes those, and the AES affine ' +
-            'layer is linear over GF(2). A lab that only tested “does it land on a coset?” would ' +
+            'layer maps subspaces to affine cosets. A lab that only tested “does it land on a coset?” would ' +
             'report a contrast that is not there.',
         ]),
         el('p', {}, [
           'The difference is how many DISTINCT spaces the 17 landing sets use. π uses two: ' +
             'sixteen cosets land on parallel slices of the subfield F₁₆ itself, and those ' +
-            'sixteen slices tile the whole output. AES uses seventeen different spaces, which tile ' +
-            'nothing. Only the first is a partition. The tally above is that count.',
+            'sixteen completed slices tile the whole output. AES uses seventeen different directions. ' +
+            'Both permutations cover every output once when the image of zero is included.',
         ]),
         el('p', {}, [
           'The exception on the π side is coset 0 — the a = 1 coset, the subfield’s own ' +
@@ -423,7 +435,7 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
         ]),
         el('p', { class: 'note' }, [
           'AES’s S-box is S(0) = b and S(x) = A·x⁻¹ ⊕ b for x ≠ 0, with A ' +
-            'a fixed GF(2)-affine map and b = 0x63 — both halves published in ',
+            'a fixed GF(2)-linear map and b = 0x63 — both halves published in ',
           cite('fips197', 'FIPS 197, §5.1.1'),
           '. The contrast is not that AES is structureless. It is that AES’s structure was ' +
             'stated by its designers, and π’s was recovered from the table by outsiders four ' +
@@ -451,13 +463,25 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
   });
 
   function readParams(): void {
-    const s = parseSList(sInput.value) ?? [];
-    const lambda = lamInputs.map((i) => parseByte(i.value) ?? 0);
-    const cstt = parseByte(csttInput.value) ?? 0;
-    sInput.setAttribute('aria-invalid', parseSList(sInput.value) === null ? 'true' : 'false');
-    lamInputs.forEach((i) => i.setAttribute('aria-invalid', parseByte(i.value) === null ? 'true' : 'false'));
-    csttInput.setAttribute('aria-invalid', parseByte(csttInput.value) === null ? 'true' : 'false');
-
+    const s = parseSList(sInput.value);
+    const lambda = lamInputs.map((input) => parseByte(input.value));
+    const cstt = parseByte(csttInput.value);
+    const validShape = s !== null && s.length === 15 && s.every((entry) => entry <= 14);
+    sInput.setAttribute('aria-invalid', String(!validShape));
+    lamInputs.forEach((input, index) => input.setAttribute('aria-invalid', String(lambda[index] === null)));
+    csttInput.setAttribute('aria-invalid', String(cstt === null));
+    if (!validShape || cstt === null || !lambda.every((value): value is number => value !== null)) {
+      genBtn.disabled = true;
+      constraintMsg.textContent = 'Enter 15 integers from 0 to 14 for s and hex bytes for each λ and cstt. The rebuild is paused.';
+      generated = null;
+      paintDiff();
+      diffVerdict.set('idle', '·', ['No comparison for the current inputs.']);
+      reuseVerdict.set('idle', '·', ['No comparison for the current inputs.']);
+      refreshCoset();
+      onDiffed(null);
+      return;
+    }
+    genBtn.disabled = false;
     params = { s, lambda, cstt };
     const problems: string[] = [];
     if (!isPermutation0to14(s)) problems.push('s is no longer a permutation of 0..14');
@@ -465,10 +489,10 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
     else if (!complementsSubfield(lambda, TKLOG_FIELD))
       problems.push('the λ span no longer covers the whole field together with the subfield');
     constraintMsg.textContent = problems.length
-      ? `Constraint broken: ${problems.join('; ')}. The generator still runs and still produces 256 bytes — it just stops reproducing π.`
+      ? `Constraint broken: ${problems.join('; ')}. The generator still runs and still produces 256 bytes — inspect the byte comparison and the landing sets separately.`
       : '';
 
-    if (generated !== null) {
+    if (requested) {
       generated = generateTklog(params);
       paintDiff();
       refreshCoset();
@@ -514,8 +538,8 @@ export function renderTablePane(root: HTMLElement, onDiffed: (distance: number) 
       el('p', { class: 'note' }, [
         'The constraints: s has to stay a permutation of {0..14}, and the four λ vectors have to span ' +
           'a 4-dimensional space which, together with the subfield, spans the whole field. Break ' +
-          'either and the generator still produces 256 bytes — they are just not π any more. Switch ' +
-          'the coset selector above to “your rebuilt version” to watch the partition go with it.',
+          'either with complete numeric inputs and compare the resulting 256 bytes with π. Switch ' +
+          'the coset selector above to “your rebuilt version” to see which landing sets survive.',
       ]),
     ]),
   );

@@ -640,10 +640,23 @@ test('space-tally calls seventeen spaces what it is: not a partition', async ({ 
 
   await page.locator('#box-select').selectOption('aes');
   await expectVerdict(page, 'space-tally', {
-    text: ['uses 17 distinct landing spaces', 'there is no partition here'],
+    text: ['uses 17 distinct landing spaces', 'cover every output once', 'do not share the subfield direction'],
     state: 'none',
     because: 'space-tally must deny a partition at seventeen spaces',
   });
+  await page.locator('#box-select').selectOption('generated');
+  await page.locator('#in-s').fill(S_COLLAPSED);
+  await expect(page.locator('#space-tally')).toContainText('16 of 17 groups lack');
+  await expect(page.locator('#space-tally')).not.toContainText('a partition');
+  await page.locator('#reset-constants').click();
+  await page.locator('#in-cstt').fill('FD');
+  await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'fail');
+  await expect(page.locator('#space-tally')).toContainText('a partition');
+  await expectVerdict(page, 'coset-verdict', {
+    text: 'missing byte is FD', state: 'pass',
+    because: 'the missing point for group zero is the edited additive constant',
+  });
+  await expect(page.locator('#coset-detail ul').nth(1).getByText('FD', { exact: true })).toHaveCount(0);
 });
 
 test('constraint-msg names the precondition the edited constants broke', async ({ page }) => {

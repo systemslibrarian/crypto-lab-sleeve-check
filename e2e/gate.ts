@@ -831,6 +831,12 @@ export async function driveAllStates(page: Page, theme: string): Promise<void> {
   await expect(page.locator('#in-cstt')).toHaveAttribute('aria-invalid', 'true');
   await scanAt('pane 2 state D: an unparseable constant, aria-invalid boundary');
 
+  await openPane(page, /The Claim/, '#pane-claim');
+  await expect(page.locator('#pane-claim')).toContainText('Locked until');
+  await openPane(page, /The Table/, '#pane-table');
+  await page.locator('#in-cstt').fill('FC');
+  await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'fail');
+
   // Pane 3 in its RETIRED state. This is a third rendering of the standing
   // verdict -- not the idle one a first visitor sees, and not the green one the
   // reset path reaches -- so without this step it would be the one state the

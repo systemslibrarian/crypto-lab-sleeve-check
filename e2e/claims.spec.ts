@@ -224,11 +224,22 @@ test('INV-4: perturbing any one constant makes both INV-2 and INV-3 fail on scre
   }
 });
 
-test('a broken generator still produces 256 bytes rather than throwing', async ({ page }) => {
+test('numeric broken constants still generate and malformed input pauses the comparison', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await reachTableDiffed(page);
-  await page.locator('#in-s').fill('99');
+  const original = await page.locator('#in-s').inputValue();
+  const rebuilt = page.locator('#pane-table table.sbox').nth(1);
+  await page.locator('#in-s').fill(Array(15).fill('0').join(','));
+  await expect(rebuilt.locator('td.match, td.miss')).toHaveCount(256);
+  await page.locator('#in-s').fill(original + ',0');
+  await expect(rebuilt.locator('td.blank')).toHaveCount(256);
+  await expect(page.locator('#generate-diff')).toBeDisabled();
+  await page.getByRole('tab', { name: /The Claim/ }).click();
+  await expect(page.locator('#pane-claim')).toContainText('Locked until');
+  await page.getByRole('tab', { name: /The Table/ }).click();
+  await page.locator('#in-s').fill(original);
+  await expect(page.locator('#diff-verdict')).toHaveAttribute('data-tone', 'pass');
   await page.locator('#in-cstt').fill('zz');
   await expect(page.locator('#in-cstt')).toHaveAttribute('aria-invalid', 'true');
   await expect(page.locator('#pane-table table.sbox').nth(1).locator('tbody td')).toHaveCount(256);
@@ -348,7 +359,7 @@ test('INV-8: nothing implies GOST specified a field for pi', async ({ page }) =>
 test('the TKlog label ships verbatim, and the recovery is credited to Perrin', async ({ page }) => {
   const copy = await allShippedCopy(page);
   expect(copy).toContain(
-    'a discrete logarithm on F₂₈ composed with an integer-to-field map recovered by Perrin (2019) — not published by the designers.',
+    'a discrete logarithm on the nonzero elements of GF(256) composed with an integer-to-field map recovered by Perrin (2019) — not published by the designers.',
   );
 });
 
@@ -361,7 +372,7 @@ test('the a = 1 coset is named as an exception rather than smoothed over', async
 test('the AES control does not claim AES has no coset structure', async ({ page }) => {
   const copy = await allShippedCopy(page);
   // The honest version of the contrast, which the naive measurement would get wrong.
-  expect(copy).toMatch(/Every one of AES.s 17 cosets also lands on an additive coset/);
+  expect(copy).toMatch(/Every one of AES.s 17 cosets also fills all but one point of an affine coset/);
   expect(copy).toMatch(/how many DISTINCT spaces/);
   // And the interval is the one this lab's own sources support: the table is
   // GOST R 34.11-2012, the first decomposition EUROCRYPT 2016 and the TKlog

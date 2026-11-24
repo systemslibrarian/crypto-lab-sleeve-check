@@ -86,8 +86,8 @@ function renderPane(key: PaneKey): void {
     });
   } else if (key === 'table') {
     renderTablePane(host, (distance) => {
-      progress.diffRun = true;
-      progress.diffDistance = distance;
+      progress.diffRun = distance !== null;
+      progress.diffDistance = distance ?? -1;
       syncTabs();
     });
   } else {

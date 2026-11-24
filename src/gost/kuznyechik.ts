@@ -23,11 +23,11 @@ import { PI_RFC7801, PI_INV_RFC7801 } from './reference';
  *
  * The RFC as published prints `148*delta(a_15) + 32*delta(a_15)` -- a_15 twice,
  * a_14 never. That is a typo, reported as erratum EID 6928 (Technical, status
- * Reported as of this writing, not Verified). The coefficient below is the
+ * Verified). The coefficient below is the
  * corrected 32*delta(a_14); with the text taken literally, Section 5's own
  * vectors do not reproduce, which is what `kuznyechik.test.ts` demonstrates.
  *
- * (The RFC's one *Verified* erratum, EID 4660, is editorial and unrelated: it
+ * (A separate verified erratum, EID 4660, is editorial and unrelated: it
  * fixes "belonging to Z" to "belonging to Q" in the Section 3.2 definition of
  * delta. It changes no value in this file.)
  */

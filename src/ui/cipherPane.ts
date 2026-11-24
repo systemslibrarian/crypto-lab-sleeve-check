@@ -229,7 +229,7 @@ export function renderCipherPane(root: HTMLElement, onVerified: () => void): voi
         el('span', { class: 'src' }, [
           'The correction is ',
           cite('eid6928'),
-          ' (Technical, status Reported). Note that the RFC\u2019s one Verified erratum, ',
+          ' (Technical, Verified). A separate verified erratum, ',
           cite('eid4660'),
           ', is editorial and unrelated \u2014 it fixes a single letter in the \u00A73.2 definition of ' +
             '\u03B4 and changes no value.',

@@ -7,17 +7,16 @@
  * same `i` the TKlog branch arithmetic computes.
  *
  * Perrin's result is about where those cosets LAND. For pi, sixteen of the
- * seventeen land on additive cosets of one and the same 4-dimensional space:
+ * seventeen fill all but one point in parallel cosets of the same subspace:
  * the subfield F_16 itself. So pi carries a simple partition of its input onto
  * a simple partition of its output.
  *
- * WHAT THE NAIVE TEST DOES NOT SHOW. "Each coset lands on an additive coset of
+ * WHAT THE NAIVE TEST DOES NOT SHOW. "Each coset fills 15 points of an additive coset of
  * some 4-dimensional space" is true of the AES S-box too, and for a dull reason:
  * a multiplicative coset a (*) F*_16 already IS a 4-dimensional subspace minus
- * zero, inversion maps it to another one, and AES's affine layer is GF(2)-linear.
+ * zero, inversion maps it to another one, and the AES affine map preserves affine spaces.
  * All 17 of AES's cosets pass that test. What separates the two boxes is how
- * many DISTINCT spaces they land on: pi uses 2, AES uses 17. Only the first is a
- * partition. `spaceId` below is what the UI counts.
+ * many DISTINCT spaces they land on: pi uses 2, AES uses 17. Only π gives the sixteen parallel affine cosets. `spaceId` below is what the UI counts.
  */
 
 import { isSubspace, subfield16, type LogTables } from './field';
@@ -106,7 +105,7 @@ export function distinctSpaceCount(views: readonly CosetView[]): number {
 
 /**
  * Do the landing sets, plus box[0], tile all 256 outputs exactly once? That is
- * what makes pi's output structure a partition rather than a coincidence.
+ * true for every permutation, independently of any shared subspace direction.
  */
 export function tilesOutputSpace(views: readonly CosetView[], box: readonly number[]): boolean {
   const seen = new Set<number>([box[0]]);
